@@ -1,5 +1,9 @@
 <?php
 /**
+ * @name MongoAdapter
+ * 
+ * Simple Mongo operation wrapper
+ * 
  * @author kim
  * @since 2011-11-28
  * @version 1.0.0
@@ -10,14 +14,23 @@ class MongoAdapter
     /**
      * connection object
      * 
-     * @var Mongo
+     * @see http://www.php.net/manual/en/class.mongo.php
+     * @var Mongo - instance of Mongo
      */
     protected $_connection = null;
 
     /**
+     * db object
+     *
+     * @see http://www.php.net/manual/en/class.mongodb.php
+     * @var MongoDB - instance of MongoDB
+     */
+    protected $_db = null;
+
+    /**
      * database configurations
      * 
-     * @var $_config 
+     * @var $_config
      */
     protected $_config = array(
         'host'        => '127.0.0.1',
@@ -28,133 +41,215 @@ class MongoAdapter
     );
 
     /**
-     * @return Mongo $_connection
+     * @return Mongo
      */
-    public function getConnection ()
+    public function getConnection()
     {
         return $this->_connection;
     }
 
 	/**
-     * @param Mongo $_connection
+     * @param Mongo $connection
      */
-    public function setConnection ($_connection)
+    public function setConnection($connection)
     {
-        $this->_connection = $_connection;
+        $this->_connection = $connection;
+    }
+    
+    /**
+     * @return MongoDB
+     */
+    public function getDb()
+    {
+        return $this->_db;
+    }
+    
+    /**
+     * @param MongoDB $db
+     */
+    public function setDb($db)
+    {
+        $this->_db = $db;
     }
 
 	/**
-     * @return array $_config
+     * @return array
      */
-    public function getConfig ()
+    public function getConfig()
     {
         return $this->_config;
     }
 
 	/**
-     * @param array $_config
+     * @param array $config
      */
-    public function setConfig ($_config)
+    public function setConfig($config)
     {
-        $this->_config = $_config;
+        $this->_config = $config;
     }
 
     /**
-     * do connect
+     * construct
+     * only set configurations
+     * should not do any connectting until real querying
+     *
+     * @param array $config
+     * @return void
+     */
+    public function __construct($config)
+    {
+        if (!empty($config) and is_array($config)) {
+            $this->setConfig($config);
+        } else {
+            throw new MongoException("Pleae provide connection configs!");
+        }
+    }
+
+    /**
+     * do connect store the Mongo instance
+     * then select the database and store MongoDB instance
+     * just before the first query
      * 
-     * @return Mongo
+     * @return MongoDB - return Mongo database object
      */
     protected function _connect()
     {
-        if (!$this->_connection) {
+        if (!$this->_db) {
             $config = $this->getConfig();
             if (!empty($config) and is_array($config)) {
+
+                // connection informations
                 $connectInfo = '';
                 if (isset($config['host']) and !empty($config['host'])) {
                     $connectInfo .= (string)$config['host'];
                 } else {
                     throw new MongoException("Host missing!");
                 }
-
                 if (isset($config['port']) and !empty($config['port'])) {
-                    $connectInfo .= ':' . (string)$config['port'];
-                }
-                
-                $conn = new Mongo($connectInfo);
-                if (isset($config['username']) and isset($config['password'])) {
-                    $conn->authenticate($username, $password);
+                    $connectInfo .= ':' . (int)$config['port'];
                 }
 
-                if (isset($config['database'])) {
-                    $conn->selectDB((string)$config['database']);
-                } else {
-                    throw new MongoException("Please select a database!");
+                // get connection
+                try {
+                    $conn = new Mongo($connectInfo);
+                    $this->setConnection($conn);
+                } catch (MongoConnectionException $e) {
+                    throw new MongoConnectionException("Fails to connect!");
                 }
                 
-                $this->setConnection($conn);
+                // get database
+                $db = $this->_getDatabaseInstance($conn);
+
             } else {
-                throw new MongoException("Can not get database configurations!");            
+                throw new MongoException("Can not get database configs!");            
             }
         }
-        return $this->_connection;
+
+        return $this->getDb();
     }
 
     /**
-     * disconnect
+     * get database instance based on dbs list
+     * do auth if db exists
+     * 
+     * @param Mongo $connection
+     * @return MongoDB
      */
-    protected function _disconnect()
+    protected function _getDatabaseInstance($connection)
     {
-        $conn = $this->getConnection();
-        if ($conn instanceof Mongo) {
-            $conn->close();
-        }
-    }
+        $config = $this->getConfig();
+        if (is_array($config) and isset($config['database'])) {
+            if ($connection instanceof Mongo) {
 
-	/**
-	 * construct
-	 * 
-	 * @param array $config
-	 */
-	public function __construct($config)
-    {
-        if (!empty($config) and is_array($config)) {
-            $this->setConfig($config);
+                // get db name list
+                $dbs = $connection->listDBs();
+                if (is_array($dbs) and !empty($dbs['databases'])) {
+                    foreach ($dbs['databases'] as $d) {
+                        $dbnames[] = $d['name'];
+                    }
+                } else {
+                    throw new MongoException("Database list empty!");
+                }
+
+                // check whether database already exists
+                $dbname = (string)$config['database'];
+                if (in_array($dbname, $dbnames)) {
+                    $db = $connection->selectDB($dbname);
+                    if (!$db) {
+                        throw new MongoException("Invalid database!");
+                    }
+                } else {
+                    throw new MongoException("Unfound database : " . $dbname);
+                }
+
+                // do auth
+                if (isset($config['username']) && isset($config['password'])) {
+                    $authResult = $db->authenticate(
+                        (string)$config['username'], (string)$config['password']
+                    );
+                    if (!$authResult['ok']) {
+                        throw new MongoException("Invalid user/password!");
+                    }
+                }
+                
+                $this->setDb($db);
+                return $db;
+            } else {
+                throw new MongoConnectionException("Invalid connection!");
+            }
         } else {
-            throw new MongoException("Pleae provide connection configurations!");
+            throw new MongoException("Database configuration unfound!");
         }
     }
-
+    
     /**
      * get collection object
      * 
+     * @param string $collectionName
      * @return MongoCollection
      */
     protected function _getCollection($collectionName)
     {
-        $conn = $this->_connect();
+        $db = $this->_connect();
         if (!empty($collectionName)) {
-            $collection = $conn->selectCollection($conn, $collectionName);
+            $collection = $db->selectCollection($collectionName);
             if ($collection instanceof MongoCollection) {
                 return $collection;
             } else {
-                throw new MongoConnectionException("Unknow collection!");                
+                throw new MongoException("Unknow collection!");                
             }
         } else {
             throw new MongoException("Collection name missing!");
         }
     }
-    
+
     /**
      * do insert
      * 
-     * @param string $collectionName
      * @param array $data
+     * @param string $collectionName
      * @param boolean $safeInsert
+     * @return void
      */
-    public function insert($data, $collectionName, $safeInsert = true)
+    public function insert($collectionName, $data, $safeInsert = true)
     {
         $collection = $this->_getCollection($collectionName);
         $collection->insert($data, $safeInsert);
+    }
+
+    /**
+     * find one record
+     * 
+     * @param string $collectionName
+     * @param array $conditions
+     * @return array
+     */
+    public function findOne($collectionName, $conditions)
+    {
+        $collection = $this->_getCollection($collectionName);
+        $where = $this->_buildQueries($conditions);
+        $result = $collection->findOne($where);
+        return $result;
     }
     
     /**
@@ -197,9 +292,31 @@ class MongoAdapter
         $collection = $this->_getCollection($collectionName);
         $collection->drop();        
     }
+
+    /**
+     * build queries by conditions array provided
+     * results are in mongo format
+     * 
+     * @param array $conditions
+     * @return array $where - queries in mongo format
+     */
+    protected function _buildQueries($conditions)
+    {
+        $where = array();
+        if (!empty($conditions) and is_array($conditions)) {
+            foreach ($conditions as $key => $value) {
+                switch ($key) {
+                    case '_id':
+                        $where['_id'] = new MongoId($value);
+                        break;
+                }
+            }
+        }
+        return $where;
+    }
     
     /**
-     * free resultset and connection
+     * free the connection
      * 
      * @return void
      */
@@ -208,6 +325,19 @@ class MongoAdapter
         $this->_disconnect();
         $this->_connection = null;
     }
-    
+
+    /**
+     * disconnect
+     *
+     * @return void
+     */
+    protected function _disconnect()
+    {
+        $conn = $this->getConnection();
+        if ($conn instanceof Mongo) {
+            $conn->close();
+        }
+    }
+
 } 
 

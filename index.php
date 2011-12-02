@@ -1,61 +1,59 @@
 <?php
 include_once 'class.MongoAdapter.php';
+include_once 'class.Comment.php';
 
 try {
-
+    // comment object
     $config = array(
             'host' => 'localhost',
             'port' => '27017',
             'database' => 'test',
-            'username' => null,
-            'password' => null
+            'username' => 'kim',
+            'password' => 'kim'
     );
-    $db = new MongoAdapter($config);
-
-    //reply
-    if (isset($_GET['action']) and $_GET['action'] == 'insert') {
-        if (!empty($_POST['content'])) {
-            $info = array(
-                    'user_id' => 'Kim_' . rand(1, 2000),
-                    'video_id' => 'MTQ4NDM4MzA_' . rand(1, 2000),
-                    'video_name' => '哈哈_' . rand(1, 2000),
-                    'created_at' => @date('Y-m-d H:i:s'),
-                    'content' => $_POST['content'] . rand(1, 2000),
-                    'parent_ids' => '',
-                    'sessions' => 0,
+    $mongo = new MongoAdapter($config);
+    $comment = new Comment($mongo);
+    
+    // insert
+    if (isset($_POST['a']) and $_POST['a'] == 'insert') {
+        if (!empty($_POST['content']) and !empty($_POST['vid'])) {
+            $data = array(
+                'vid' => $_POST['vid'],
+                'pct' => $_POST['pct'],
+                'v_userid' => $_POST['vuid'],
+                'comment_userid' => 'xqpmjh', 
+                'to_userid' => $_POST['vuid'],
+                'v_name' => $_POST['vname'],
+                'content' => $_POST['content'],
             );
-            $db->insert($info, 'comment');
+            $comment->saveNew($data);
         }
         header('location: index.php');
     }
-    
-    //reply
-    if (isset($_GET['action']) and $_GET['action'] == 'reply') {
-        if (!empty($_POST['content'])) {
-            $info = array(
-                'user_id' => 'Kim_' . rand(1, 2000),
-                'video_id' => 'MTQ4NDM4MzA_' . rand(1, 2000),
-                'video_name' => '哈哈_' . rand(1, 2000),
-                'created_at' => @date('Y-m-d H:i:s'),
-                'content' => $_POST['content'] . rand(1, 2000),
-                'parent_ids' => '',
-                'sessions' => 0,
+
+    // reply
+    if (isset($_POST['a']) and $_POST['a'] == 'reply') {
+        if (!empty($_POST['content']) and !empty($_POST['cmt_id'])) {
+            $data = array(
+                'content' => $_POST['content'],
+                'comment_id' => $_POST['cmt_id'],
             );
-            $db->insert($info, 'comment');
+            $comment->saveReply($data);
         }
         header('location: index.php');
     }
 
     //drop
     if (isset($_GET['action']) and $_GET['action'] == 'drop') {
-        $db->drop('comment');
+        $mongo->drop('comment');
     }
 
-    $comments = $db->findAll('comment');
-    $total = $db->count('comment');
-    
+    $comments = $comment->findAll();
+    $total = $comment->count();
+
 } catch (Exception $e) {
     echo $e->getMessage();
+    die;
 }
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -101,40 +99,73 @@ try {
             </div>
 
             <?php
+            $i = 0;
+            function displayTower($tower) {
+                global $i;
+                $html = '';
+                if (!empty($tower)) {
+                    if (isset($tower['comment_tower']) and !empty($tower['comment_tower'])) {
+                        //var_dump($tower['comment_tower']);
+                        $html .= displayTower($tower['comment_tower']);
+                    }
+                    $html .= '<p>&nbsp;&nbsp;&nbsp;&nbsp;'
+                          . $tower['comment_userid'] . '说：' . $tower['content'] . '</p><br />';
+
+                    $formId = 'LwordForm_' . $cmt['_id'] . '__' . ++$i;
+                    $html .= '<form name="' . $formId . '" id="' . $formId . '" action="index.php" method="post" accept-charset="utf-8">
+                            <textarea tabindex="2" rows="8" cols="50" onfocus="" onkeydown="ctlent(this,event);" spanid="auth_img_span_id_bottom" onclick="gReF.face(\'\', this, this);" spanidv="auth_img_span_id" onmousedown="gReF.auth(this);" id="content" name="content"></textarea>
+                            <input type="hidden" name="a" value="reply" />
+                            <input type="hidden" name="cmt_id" value="' . $cmt['_id'] . '" />
+                            <input type="submit" name="submit" />
+                        </form>';
+                }
+                return $html;
+            }
+
+            //echo '<pre>'; var_dump($comments);echo '</pre>';
+
             foreach ($comments as $cmt) {
+                //var_dump($cmt);die;
                 $formId = 'LwordForm_' . $cmt['_id'];
             ?>
-			<div class="LeaveWord">
-            	<div class="cmf">
-		            <div style="float:left;">
-			            <a style="font-weight: bold" href="http://xqpmjh.v.56.com" target="_blank"></a><a href="http://xqpmjh.56.com" target="_blank"><?php echo $cmt['user_id']; ?></a>
-					</div>
-					<div class="MsgIco" onclick="_c.sendSms('xqpmjh')"></div>
-					    [<?php echo $cmt['created_at']; ?> 在<a href="http://www.56.com/u89/v_<?php echo $cmt['video_id'] ?>.html" target="_blank"><span class="comSub"><?php echo $cmt['video_name'] ?></span></a> 说:
-				</div>
-				<div class="cmt">
-					<div id="LC_135490492" class="leave">
-					<!-- <img src="http://www.56.com/images/face/a/96.gif" border="0"> -->
-					<wbr><?php echo $cmt['content']; ?></div>
-				</div>
-				<div class="date">
-				    <span class="ope3"><a title="支持" href="javascript:gReF.ding(135490492);" id="ding_btn_135490492" class="up">&nbsp;</a><a href="javascript:;" onmousedown="gReF.ding(135490492)" id="ding_135490492"></a>
-				    <!--<a title="反对" href="javascript:;" id="dao_btn_135490492" onmousedown="gReF.dao(135490492)" class="down">&nbsp;</a><a href="javascript:;" onmousedown="gReF.dao(135490492)" id="dao_135490492">0</a>--></span>
-				    <form name="<?php echo $formId; ?>" id="<?php echo $formId; ?>" action="index.php?action=reply" method="post" accept-charset="utf-8">
-				        <textarea tabindex="2" rows="8" cols="50" onfocus="" onkeydown="ctlent(this,event);" spanid="auth_img_span_id_bottom" onclick="gReF.face('',this,this);" spanidv="auth_img_span_id" onmousedown="gReF.auth(this);" id="content" name="content"></textarea>
-				        <input type="hidden" name="cmt_id" value="<?php echo $cmt['_id']; ?>" />
-				        <input type="submit" name="submit" />
-				    </form>
-    				<!-- <span class="ope1"><a href="javascript:;" onclick="">回复</a></span> -->
-                </div>
-			</div>
+    			<div class="LeaveWord">
+                	<div class="cmf">
+    		            <div style="float:left;">
+    			            <a style="font-weight: bold" href="http://xqpmjh.v.56.com" target="_blank"></a>
+    			            <a href="http://xqpmjh.56.com" target="_blank"><?php echo $cmt['v_userid']; ?></a>
+    					</div>
+    					<div class="MsgIco" onclick="_c.sendSms('xqpmjh')"></div>
+    					    [<?php echo $cmt['created_at']; ?> 在<a href="http://www.56.com/u89/v_<?php echo $cmt['vid'] ?>.html" target="_blank">
+    					    <span class="comSub"><?php echo $cmt['v_name'] ?></span></a> 说:
+    				</div>
+    				<div class="cmt">
+    					<div id="LC_135490492" class="leave">
+    					<!-- <img src="http://www.56.com/images/face/a/96.gif" border="0"> -->
+    					<wbr><?php echo $cmt['content']; ?></div>
+    					&nbsp;
+    					<?php echo displayTower($cmt['comment_tower']); ?>
+    					
+    				</div>
+    				<div class="date">
+    				    <span class="ope3"><a title="支持" href="javascript:gReF.ding(135490492);" id="ding_btn_135490492" class="up">&nbsp;</a><a href="javascript:;" onmousedown="gReF.ding(135490492)" id="ding_135490492"></a>
+    				    <!--<a title="反对" href="javascript:;" id="dao_btn_135490492" onmousedown="gReF.dao(135490492)" class="down">&nbsp;</a><a href="javascript:;" onmousedown="gReF.dao(135490492)" id="dao_135490492">0</a>--></span>
+    				    <form name="<?php echo $formId; ?>" id="<?php echo $formId; ?>" action="index.php" method="post" accept-charset="utf-8">
+    				        <textarea tabindex="2" rows="8" cols="50" onfocus="" onkeydown="ctlent(this,event);" spanid="auth_img_span_id_bottom" onclick="gReF.face('',this,this);" spanidv="auth_img_span_id" onmousedown="gReF.auth(this);" id="content" name="content"></textarea>
+    				        <input type="hidden" name="a" value="reply" />
+    				        <input type="hidden" name="cmt_id" value="<?php echo $cmt['_id']; ?>" />
+    				        <input type="submit" name="submit" />
+    				    </form>
+        				<!-- <span class="ope1"><a href="javascript:;" onclick="">回复</a></span> -->
+                    </div>
+    			</div>
 		    <?php } ?>
 		
         </div>
         
         <div class="reViewForm" id="LwordPost">
-            <form accept-charset="utf-8" action="index.php?action=insert" name="LwordForm" id="LwordForm" onsubmit="" method="post">
+            <form accept-charset="utf-8" action="index.php" name="LwordForm" id="LwordForm" onsubmit="" method="post">
                 <div class="lw_post">
+
                     <h3>我要说两句</h3>
                     <div class="face">
                         <img title="愤怒" alt="愤怒" src="http://www.56.com/images/face/a/angry.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_angry`]',this);">
@@ -146,20 +177,22 @@ try {
                         <wbr><img title="惊讶" alt="惊讶" src="http://www.56.com/images/face/a/53.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_53`]',this);">
                         <wbr><img title="伤心" alt="伤心" src="http://www.56.com/images/face/a/96.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_96`]',this);">
                     </div>
+
+                    <!--
                     <input type="hidden" id="qt_0" name="quote_content">
                     <input type="hidden" id="qu_0" name="quote_userid">
-                    <!-- <input type="hidden" name="callback" value="parent.gReF.insertCallback"> -->
-                    <input type="hidden" name="uid" value="naonao" />
-                    <input type="hidden" name="a" value="insert" />
+                    <input type="hidden" name="callback" value="parent.gReF.insertCallback">
+                    -->
                     <input type="hidden" name="vid" value="MTQ4NDM4MzA" />
-                    <input value="1" name="pct" type="hidden">
-
+                    <input type="hidden" name="pct" value="1" />
+                    <input type="hidden" name="vuid" value="naonao" />
+                    <input type="hidden" name="a" value="insert" />
+                    <input type="hidden" name="vname" value="哈哈哈" />
                     <textarea tabindex="2" rows="8" cols="50" onfocus="" onkeydown="" spanid="auth_img_span_id_bottom" onclick="" spanidv="auth_img_span_id" onmousedown="" id="content" name="content"></textarea>
 
                     <div class="loginfo">
                         <p>您好56网友，建议先<a href="javascript:gReF.loginForm();">登录</a>
                         <span>|</span><a target="_blank" href="http://reg.56.com/newreg/register/">注册</a></p>
-                        <div class="sub_top_b"><a onclick="setStat('clitop')" title="" href="#">TOP<span>↑</span></a></div>
                     </div>
                     <div class="btn">
                         <p id="auth_img_p_" style="display:none;">
@@ -170,9 +203,11 @@ try {
                             <span class="sub_tips">Ctrl+回车 提交</span>
                         </p>
                     </div>
+
                 </div>
             </form>
         </div>
+        
     </div>
 
 <!--留言内容 end-->		
