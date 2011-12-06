@@ -1,15 +1,31 @@
 <?php
 /**
- * @name MongoAdapter
- * 
+ * @see MongoCursorWrapper
+ */
+include_once 'class.MongoCursorWrapper.php';
+
+/**
+ * class MongoAdapter
+ *
  * Simple Mongo operation wrapper
- * 
+ *
+ * @example
+ * $config = array(
+ *           'host' => 'localhost',
+ *           'port' => '27017',
+ *           'database' => 'test',
+ *           'username' => 'kim',
+ *           'password' => 'kim'
+ * );
+ * $mongo = new MongoAdapter($config);
+ * $commentList = $mongo->findAll('comment');
+ *
  * @author kim
  * @since 2011-11-28
  * @version 1.0.0
  *
  */
-class MongoAdapter
+final class MongoAdapter
 {
     /**
      * connection object
@@ -55,7 +71,7 @@ class MongoAdapter
     {
         $this->_connection = $connection;
     }
-    
+
     /**
      * @return MongoDB
      */
@@ -63,7 +79,7 @@ class MongoAdapter
     {
         return $this->_db;
     }
-    
+
     /**
      * @param MongoDB $db
      */
@@ -185,7 +201,8 @@ class MongoAdapter
                 // do auth
                 if (isset($config['username']) && isset($config['password'])) {
                     $authResult = $db->authenticate(
-                        (string)$config['username'], (string)$config['password']
+                        (string)$config['username'],
+                        (string)$config['password']
                     );
                     if (!$authResult['ok']) {
                         throw new MongoException("Invalid user/password!");
@@ -224,6 +241,19 @@ class MongoAdapter
     }
 
     /**
+     * disconnect
+     *
+     * @return void
+     */
+    protected function _disconnect()
+    {
+        $conn = $this->getConnection();
+        if ($conn instanceof Mongo) {
+            $conn->close();
+        }
+    }
+    
+    /**
      * do insert
      * 
      * @param array $data
@@ -242,13 +272,14 @@ class MongoAdapter
      * 
      * @param string $collectionName
      * @param array $conditions
-     * @return array
+     * @return MongoCursorWrapper
      */
     public function findOne($collectionName, $conditions)
     {
         $collection = $this->_getCollection($collectionName);
         $where = $this->_buildQueries($conditions);
         $result = $collection->findOne($where);
+        $result = new MongoCursorWrapper($result);
         return $result;
     }
     
@@ -256,18 +287,35 @@ class MongoAdapter
      * find all the records
      * 
      * @param string $collectionName
-     * @return array
+     * @return array - array of MongoCursorWrapper
      */
     public function findAll($collectionName)
     {
         $collection = $this->_getCollection($collectionName);
         $result = array();
         foreach ($collection->find() as $row) {
-            $result[] = $row;
+            $result[] = new MongoCursorWrapper($row);
         }
         return $result;
     }
-    
+
+    /**
+     * get reference document
+     * 
+     * @param array $ref - the reference object
+     * @return array
+     */
+    public function getDbRef($collectionName, $ref)
+    {
+        $result = array();
+        if (!empty($ref) and MongoDBRef::isRef($ref)) {
+            $collection = $this->_getCollection($collectionName);
+            $result = $collection->getDBRef($ref);
+            $result = new MongoCursorWrapper($result);
+        }
+        return $result;
+    }
+
     /**
      * count number of collections
      * 
@@ -314,10 +362,10 @@ class MongoAdapter
         }
         return $where;
     }
-    
+
     /**
      * free the connection
-     * 
+     *
      * @return void
      */
     public function free()
@@ -325,19 +373,6 @@ class MongoAdapter
         $this->_disconnect();
         $this->_connection = null;
     }
-
-    /**
-     * disconnect
-     *
-     * @return void
-     */
-    protected function _disconnect()
-    {
-        $conn = $this->getConnection();
-        if ($conn instanceof Mongo) {
-            $conn->close();
-        }
-    }
-
+    
 } 
 

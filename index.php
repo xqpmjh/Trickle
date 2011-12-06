@@ -49,6 +49,7 @@ try {
     }
 
     $comments = $comment->findAll();
+    echo '<pre>'; var_dump($comments); echo '</pre>';die;
     $total = $comment->count();
 
 } catch (Exception $e) {
@@ -100,9 +101,17 @@ try {
 
             <?php
             $i = 0;
-            function displayTower($tower) {
-                global $i;
+            function displayTower($comment) {
                 $html = '';
+                if (isset($comment['comment_ref_ins']) and !empty($comment['comment_ref_ins'])) {
+                    //var_dump($tower['comment_tower']);
+                    $html .= displayTower($comment['comment_ref_ins']);
+                }
+                if (!empty($comment)) {
+                    $html .= '&nbsp;&nbsp;&nbsp;&nbsp;'
+                           . $comment['comment_userid'] . ' 于 ' . $comment->created_ataa . ' 说：' . $comment['content'] . '<br />';
+                }
+                /*global $i;
                 if (!empty($tower)) {
                     if (isset($tower['comment_tower']) and !empty($tower['comment_tower'])) {
                         //var_dump($tower['comment_tower']);
@@ -118,7 +127,7 @@ try {
                             <input type="hidden" name="cmt_id" value="' . $cmt['_id'] . '" />
                             <input type="submit" name="submit" />
                         </form>';
-                }
+                }*/
                 return $html;
             }
 
@@ -143,7 +152,7 @@ try {
     					<!-- <img src="http://www.56.com/images/face/a/96.gif" border="0"> -->
     					<wbr><?php echo $cmt['content']; ?></div>
     					&nbsp;
-    					<?php echo displayTower($cmt['comment_tower']); ?>
+    					<?php echo displayTower($cmt['comment_ref_ins']); ?>
     					
     				</div>
     				<div class="date">

@@ -1,6 +1,6 @@
 <?php
 /**
- * @name Comment
+ * class Comment
  *
  * @author kim
  * @since 2011-11-28
@@ -19,7 +19,7 @@ class Comment
     /**
      * database adapter
      *
-     * @var $_dbAdapter
+     * @var MongoAdapter
      */
     protected $_dbAdapter = null;
 
@@ -66,7 +66,7 @@ class Comment
         if (is_object($dbAdapter)) {
             $this->setDbAdapter($dbAdapter);
         } else {
-            throw new MongoException("Pleae provide database adapter!");
+            throw new exception("Pleae provide database adapter!");
         }
     }
     
@@ -84,12 +84,12 @@ class Comment
                 'v_userid' => $data['v_userid'],
                 'comment_userid' => $data['comment_userid'],
                 'to_userid' => $data['to_userid'],
-                'comment_tower' => '',
-                'created_at' => @date('Y-m-d H:i:s'),
                 'scoring' => 3,
                 'ip' => $this->_getUserIp(),
                 'v_name' => $data['v_name'],
-                'content' => $data['content'] . rand(1, 2000),
+                'content' => $data['content'],
+                'comment_ref' => array(),
+                'created_at' => @date('Y-m-d H:i:s'),
             );
             //var_dump($info);die;
         }
@@ -106,20 +106,27 @@ class Comment
         if (!empty($data['content']) and !empty($data['comment_id'])) {
             $commentId = $data['comment_id'] ? : false;
             if ($commentId) {
-                $comment = $this->getDbAdapter()->findOne('comment', array('_id' => $commentId));
+                $comment = $this->getDbAdapter()
+                    ->findOne('comment', array('_id' => $commentId));
                 $info = array(
                     'vid' => $comment['vid'],
                     'pct' => $comment['pct'],
                     'v_userid' => $comment['v_userid'],
-                    'comment_userid' => 'xqpmjh' . rand(2, 2222), // should be member
+                    'comment_userid' => 'xqpmjh' . rand(2, 2222),
                     'to_userid' => $comment['comment_userid'],
-                    'created_at' => @date('Y-m-d H:i:s'),
                     'scoring' => 3,
                     'ip' => $this->_getUserIp(),
                     'v_name' => $comment['v_name'],
+                    'content' => $data['content'],
+                    'created_at' => @date('Y-m-d H:i:s'),
                 );
-                $info['content'] = $data['content'] . rand(1, 2000);
-                $info['comment_tower'] = $comment;
+                //$info['comment_tower'] = $comment;
+                
+                // add ref comment
+                $info['comment_ref'] = array(MongoDBRef::create(
+                        "comment", $comment['_id']
+                ));
+
                 //echo '<pre>'; var_dump($info);echo '</pre>';
             }
             //die;
@@ -142,13 +149,43 @@ class Comment
     }
 
     /**
-     * find all comments
-     * 
-     * @return array
+     * find all comments and their replies list
+     *
+     * @see _getRefComments()
+     * @return array - the comments list
      */
     public function findAll()
     {
-        return $this->getDbAdapter()->findAll($this->getCollectionName());
+        $result = array();
+        $commentList = $this->getDbAdapter()
+                            ->findAll($this->getCollectionName());
+        foreach ($commentList as $comment) {
+            $comment = $this->_getRefComments($comment);
+            $result[] = $comment;
+        }
+        return $result;
+    }
+
+    /**
+     * get reference comments list
+     * 
+     * 'comment_ref_ins' - store the instance of another comment
+     * the key of recursive comments chain
+     * 
+     * @param array $comment
+     * @return array - the comment with replies
+     */
+    protected function _getRefComments($comment)
+    {
+        $comment['comment_ref_ins'] = array();
+        if (!empty($comment['comment_ref']) and
+            isset($comment['comment_ref'][0])) {
+            $commentRef = $this->getDbAdapter()->getDbRef(
+                'comment', $comment['comment_ref'][0]
+            );
+            $comment['comment_ref_ins'] = $this->_getRefComments($commentRef);
+        }
+        return $comment;
     }
 
     /**
@@ -158,7 +195,8 @@ class Comment
      */
     public function count()
     {
-        return (int)$this->getDbAdapter()->count($this->getCollectionName());
+        $result = (int)$this->getDbAdapter()->count($this->getCollectionName());
+        return $result;
     }
 
     /**
@@ -179,3 +217,4 @@ class Comment
     }
 
 }
+
