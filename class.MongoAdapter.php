@@ -1,6 +1,6 @@
 <?php
 /**
- * @author kim (happy life at 56.com lol)
+ * @author kim (happy life lol)
  * @since 2011-11-28
  * @version 1.0.0
  */
@@ -17,8 +17,7 @@ require_once 'class.MongoCursorWrapper.php';
  *
  * @example
  * $config = array(
- *           'host' => 'localhost',
- *           'port' => '27017',
+ *           'servers'  => 'localhost:27017',
  *           'database' => 'test',
  *           'username' => 'kim',
  *           'password' => 'kim'
@@ -32,7 +31,7 @@ require_once 'class.MongoCursorWrapper.php';
  * $comment = new Comment($mongo);
  *
  * @todo
- * # MongoCollection:: remove() - delete function, should be impletment soon !!!
+ * # MongoCollection:: remove() - delete function, should be impletment soon!!
  * 
  * # MongoCollection::batchInsert() - insert multiple records at one time.
  * # MongoDB::listCollections() - throw some exceptions if collection unexists?
@@ -70,8 +69,7 @@ final class MongoAdapter
      * @var array $_config
      */
     protected $_config = array(
-        'host'        => '127.0.0.1',
-        'port'        => '27017',
+        'servers'     => array('127.0.0.1:27017'),
         'database'    => null,
         'username'    => null,
         'password'    => null,
@@ -90,7 +88,7 @@ final class MongoAdapter
      * @var array $_options
      */
     protected $_options = array(
-        'persist'    => 'x',
+        'persist' => 'x',
         'replicaSet' => false,
     );
 
@@ -212,18 +210,19 @@ final class MongoAdapter
                                   . (string)$config['password'] . '@';
                 }
 
-                // host informations
-                if (!empty($config['host'])) {
-                    $connectInfo .= (string)$config['host'];
+                // server informations
+                if (!empty($config['servers'])) {
+                    if (is_array($config['servers'])) {
+                        $connectInfo .= (string)implode(',', $config['servers']);
+                        // is multiple servers then it should be replica set
+                        $options = $this->getOptions();
+                        $options['replicaSet'] = true;
+                        $this->setOptions($options);
+                    } else {
+                        $connectInfo .= (string)$config['servers'];
+                    }
                 } else {
-                    throw new MongoException("Host missing!");
-                }
-
-                /**
-                 * @todo should we force the port to be not empty?
-                 */
-                if (!empty($config['port'])) {
-                    $connectInfo .= ':' . (int)$config['port'];
+                    throw new MongoException("Server configs missing!");
                 }
 
                 // database name
@@ -244,10 +243,11 @@ final class MongoAdapter
                     $this->setConnection($conn);
                     
                     // for testing replica sets
-                    //var_dump($conn->getHosts());
+                    var_dump($conn->getHosts());
 
                 } catch (MongoConnectionException $e) {
-                    throw new MongoConnectionException("Fails to connect!");
+                    throw new MongoConnectionException(
+                            "Fails to connect : " . $e->getMessage());
                 }
                 
                 // get database
@@ -448,7 +448,8 @@ final class MongoAdapter
         $collection = $this->_getCollection($collectionName);
         $result = $collection->drop();
         if (isset($result['ok']) and !$result['ok']) {
-            throw new MongoException("Unable to drop collection : " . $collectionName);
+            throw new MongoException(
+                    "Unable to drop collection : " . $collectionName);
         }
         return true;
     }

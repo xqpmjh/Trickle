@@ -5,11 +5,15 @@ include_once 'class.Comment.php';
 try {
     // comment object
     $config = array(
-            'host' => 'localhost',
-            'port' => '27017',
-            'database' => 'test',
-            'username' => 'kim',
-            'password' => 'kim'
+        'servers'  => array(
+            //'localhost:27017',
+            'localhost:27018',
+            'localhost:27019',
+            'localhost:27020',
+        ),
+        'database' => 'test',
+        'username' => 'kim',
+        'password' => 'kim',
     );
     $mongo = new MongoAdapter($config);
     $comment = new Comment($mongo);
