@@ -10,37 +10,37 @@
 class Comment
 {
     /**
-     * the collection name
+     * the table name
      * 
      * @var string
      */
-    protected $_collectionName = 'comment';
+    protected $_tableName = 'comment';
     
     /**
      * database adapter
      *
-     * @var MongoAdapter
+     * @var mixed
      */
     protected $_dbAdapter = null;
 
     /**
-     * @return string $_collectionName
+     * @return string $_tableName
      */
-    public function getCollectionName ()
+    public function getTableName ()
     {
-        return $this->_collectionName;
+        return $this->_tableName;
     }
 
 	/**
-     * @param string $_collectionName
+     * @param string $_tableName
      */
-    public function setCollectionName ($_collectionName)
+    public function setTableName ($_tableName)
     {
-        $this->_collectionName = $_collectionName;
+        $this->_tableName = $_tableName;
     }
 
 	/**
-     * @return MongoAdapter $_dbAdapter
+     * @return mixed $_dbAdapter
      */
     public function getDbAdapter ()
     {
@@ -48,7 +48,7 @@ class Comment
     }
 
 	/**
-     * @param MongoAdapter $_dbAdapter
+     * @param mixed $_dbAdapter
      */
     public function setDbAdapter ($_dbAdapter)
     {
@@ -58,7 +58,7 @@ class Comment
 	/**
      * construct
      *
-     * @param object $dbAdapter
+     * @param object|mixed $dbAdapter
      * @return void
      */
     public function __construct($dbAdapter)
@@ -69,7 +69,7 @@ class Comment
             throw new exception("Pleae provide database adapter!");
         }
     }
-    
+
     /**
      * save new comment
      * 
@@ -106,8 +106,9 @@ class Comment
         if (!empty($data['content']) and !empty($data['comment_id'])) {
             $commentId = $data['comment_id'] ? : false;
             if ($commentId) {
-                $comment = $this->getDbAdapter()
-                    ->findOne('comment', array('_id' => $commentId));
+                $comment = $this->getDbAdapter()->findOne(
+                    'comment', array('_id' => $commentId)
+                );
                 $info = array(
                     'vid' => $comment['vid'],
                     'pct' => $comment['pct'],
@@ -120,12 +121,11 @@ class Comment
                     'content' => $data['content'],
                     'created_at' => @date('Y-m-d H:i:s'),
                 );
-                //$info['comment_tower'] = $comment;
-                
+
                 // add ref comment
-                $info['comment_ref'] = array(MongoDBRef::create(
-                        "comment", $comment['_id']
-                ));
+                $info['comment_ref'] = $this->getDbAdapter()->createRef(
+                        "comment", $commentId
+                );
 
                 //echo '<pre>'; var_dump($info);echo '</pre>';
             }
@@ -137,12 +137,13 @@ class Comment
     /**
      * find one comment by id
      *
-     * @return array
+     * @param string $id - the document id
+     * @return mixed
      */
     public function findOne($id)
     {
         $result = $this->getDbAdapter()->findOne(
-            $this->getCollectionName(),
+            $this->getTableName(),
             array('_id' => $commentId)
         );
         return $result;
@@ -157,8 +158,10 @@ class Comment
     public function findAll()
     {
         $result = array();
-        $commentList = $this->getDbAdapter()
-                            ->findAll($this->getCollectionName());
+        $commentList = $this->getDbAdapter()->findAll(
+            $this->getTableName(),
+            array('sort' => array('created_at' => -1))
+        );
         foreach ($commentList as $comment) {
             $comment = $this->_getRefComments($comment);
             $result[] = $comment;
@@ -179,9 +182,9 @@ class Comment
     {
         $comment['comment_ref_ins'] = array();
         if (!empty($comment['comment_ref']) and
-            isset($comment['comment_ref'][0])) {
+            isset($comment['comment_ref'])) {
             $commentRef = $this->getDbAdapter()->getDbRef(
-                'comment', $comment['comment_ref'][0]
+                'comment', $comment['comment_ref']
             );
             $comment['comment_ref_ins'] = $this->_getRefComments($commentRef);
         }
@@ -193,12 +196,23 @@ class Comment
      * 
      * @return int
      */
-    public function count()
+    public function total()
     {
-        $result = (int)$this->getDbAdapter()->count($this->getCollectionName());
+        $result = (int)$this->getDbAdapter()->count($this->getTableName());
         return $result;
     }
 
+    /**
+     * drop the comment collection
+     *
+     * @return boolean
+     */
+    public function drop()
+    {
+        $collectionName = $this->getTableName();
+        return $this->getDbAdapter()->drop($collectionName);
+    }
+    
     /**
      * get current visitor's ip address
      *

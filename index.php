@@ -45,12 +45,13 @@ try {
 
     //drop
     if (isset($_GET['action']) and $_GET['action'] == 'drop') {
-        $mongo->drop('comment');
+        $comment->drop();
+        header('location: index.php');
     }
 
     $comments = $comment->findAll();
-    echo '<pre>'; var_dump($comments); echo '</pre>';die;
-    $total = $comment->count();
+    //echo '<pre>'; var_dump($comments); echo '</pre>';die;
+    $total = $comment->total();
 
 } catch (Exception $e) {
     echo $e->getMessage();
