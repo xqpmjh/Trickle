@@ -12,39 +12,46 @@
 class MongoCursorWrapper implements arrayaccess
 {
     /**
-     * @var array|stdClass|mixed
+     * @var mixed
      */
     private $_data = array();
-    
+
     /**
      * construct
      * 
-     * @param array|mixed $data
+     * @param mixed $data
      */
     public function __construct($data)
     {
         $this->_data = $data;
     }
-    
+
     /**
      * set array element
      * 
      * @see ArrayAccess::offsetSet()
+     * @param mixed $offset
+     * @param mixed $value
+     * @return void
      */
-    public function offsetSet($offset, $value) {
+    public function offsetSet($offset, $value)
+    {
         if (is_null($offset)) {
             $this->_data[] = $value;
         } else {
             $this->_data[$offset] = $value;
         }
     }
-    
+
     /**
      * check if array element exists
      * 
      * @see ArrayAccess::offsetExists()
+     * @param mixed $offset
+     * @return bool
      */
-    public function offsetExists($offset) {
+    public function offsetExists($offset)
+    {
         return isset($this->_data[$offset]);
     }
 
@@ -52,8 +59,11 @@ class MongoCursorWrapper implements arrayaccess
      * unset array element by offset
      * 
      * @see ArrayAccess::offsetUnset()
+     * @param mixed $offset
+     * @return void
      */
-    public function offsetUnset($offset) {
+    public function offsetUnset($offset)
+    {
         unset($this->_data[$offset]);
     }
 
@@ -61,14 +71,18 @@ class MongoCursorWrapper implements arrayaccess
      * get array element by offset
      *  
      * @see ArrayAccess::offsetGet()
+     * @param mixed $offset
+     * @return mixed
      */
-    public function offsetGet($offset) {
+    public function offsetGet($offset)
+    {
         return isset($this->_data[$offset]) ? $this->_data[$offset] : null;
     }
 
     /**
      * when try to get properties : $obj->property_1
      * 
+     * @todo to throw exceptions instead of return empty string?
      * @param mixed $key
      * @return mixed
      */
@@ -86,6 +100,7 @@ class MongoCursorWrapper implements arrayaccess
      *
      * @param mixed $key
      * @param mixed $value
+     * @return void
      */
     public function __set($key, $value)
     {
@@ -96,8 +111,9 @@ class MongoCursorWrapper implements arrayaccess
 
     /**
      * check if property exists
-     * 
+     *
      * @param mixed $key
+     * @return mixed
      */
     public function __isset($key)
     {
@@ -108,11 +124,11 @@ class MongoCursorWrapper implements arrayaccess
      * unset the property's value
      * 
      * @param mixed $key
+     * @return void
      */
     public function __unset($key)
     {
         unset($this->_data[$key]);
-    }    
+    }
 
 }
-

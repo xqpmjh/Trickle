@@ -214,12 +214,15 @@ final class MongoAdapter
                 if (!empty($config['servers'])) {
                     if (is_array($config['servers'])) {
                         $connectInfo .= (string)implode(',', $config['servers']);
-                        // is multiple servers then it should be replica set
-                        $options = $this->getOptions();
-                        $options['replicaSet'] = true;
-                        $this->setOptions($options);
                     } else {
                         $connectInfo .= (string)$config['servers'];
+                    }
+
+                    // is multiple servers then it should be replica set
+                    if (count($config['servers']) > 1) {
+                        $options = $this->getOptions();
+                        $options['replicaSet'] = true;
+                        $this->setOptions($options);                        
                     }
                 } else {
                     throw new MongoException("Server configs missing!");
@@ -243,7 +246,7 @@ final class MongoAdapter
                     $this->setConnection($conn);
                     
                     // for testing replica sets
-                    var_dump($conn->getHosts());
+                    echo 'Debug: <br />'; var_dump($conn->getHosts());
 
                 } catch (MongoConnectionException $e) {
                     throw new MongoConnectionException(
@@ -323,6 +326,27 @@ final class MongoAdapter
     }
 
     /**
+     * do save
+     * 
+     * @param string $collectionName
+     * @param array $conditions
+     * @param array $fields - the fields and values to save
+     * @return array|bool
+     */
+    public function save($collectionName, $conditions, $fields)
+    {
+        $collection = $this->_getCollection($collectionName);
+        $query = $this->_buildCriteria($conditions);
+        $row = $collection->findOne($query);
+        if ($row) {
+            foreach ($fields as $field => $value) {
+                $row[$field] = $value;
+            }
+        }
+        return $collection->save($row);
+    }
+
+    /**
      * find one record
      * 
      * @param string $collectionName
@@ -334,7 +358,7 @@ final class MongoAdapter
     {
         $result = null;
         $collection = $this->_getCollection($collectionName);
-        $query = $this->_buildQuery($conditions);
+        $query = $this->_buildCriteria($conditions);
         if ($row = $collection->findOne($query, $fields)) {
             $result = new MongoCursorWrapper($row);
         }
@@ -350,22 +374,25 @@ final class MongoAdapter
      * MongoCursor::limit() / MongoCursor::skip()
      * 
      * @param string $collectionName
+     * @param array $query - the queries for find()
      * @param array $operations
      * @return array - array of MongoCursorWrapper
      */
-    public function findAll($collectionName, $operations = null)
+    public function findAll($collectionName, $query = null, $operations = null)
     {
         $collection = $this->_getCollection($collectionName);
         $result = array();
-        $entities = $collection->find();
+        $entities = $collection->find($query);
 
+        // if some operations need to apply
         if (is_array($operations) and !empty($operations)) {
             if (isset($operations['sort']) and is_array($operations['sort'])) {
                 $entities = $entities->sort($operations['sort']);
             }
         }
 
-        while($entities->hasNext()) {
+        // wrap the objects
+        while ($entities->hasNext()) {
             $row = $entities->getNext();
             $result[] = new MongoCursorWrapper($row);
         }
@@ -455,22 +482,23 @@ final class MongoAdapter
     }
 
     /**
-     * build queries by conditions array provided
-     * results are in mongo format
+     * build criterias by conditions array provided
      * 
      * @todo other conditions...
      * 
      * @param array $conditions
      * @return array $query - queries in mongo format
      */
-    protected function _buildQuery($conditions)
+    protected function _buildCriteria($conditions)
     {
         $query = array();
         if (!empty($conditions) and is_array($conditions)) {
             foreach ($conditions as $key => $value) {
                 switch ($key) {
                     case '_id':
-                        $query['_id'] = new MongoId($value);
+                        if (!($value instanceof MongoId)) {
+                            $query['_id'] = new MongoId($value);
+                        }
                         break;
                 }
             }

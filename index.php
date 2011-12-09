@@ -2,11 +2,17 @@
 include_once 'class.MongoAdapter.php';
 include_once 'class.Comment.php';
 
-try {
+// configs
+$config = array(
+        'servers'  => array(
+            '172.16.245.126:27017',
+        ),
+        'database' => 'test',
+);
+if (isset($_SERVER['REMOTE_ADDR']) and $_SERVER['REMOTE_ADDR'] == '127.0.0.1') {
     // comment object
     $config = array(
         'servers'  => array(
-            //'localhost:27017',
             'localhost:27018',
             'localhost:27019',
             'localhost:27020',
@@ -15,9 +21,13 @@ try {
         'username' => 'kim',
         'password' => 'kim',
     );
-    $mongo = new MongoAdapter($config);
-    $comment = new Comment($mongo);
-    
+}
+
+try {
+    // comment object
+    $dbAdapter = new MongoAdapter($config);
+    $comment = new Comment($dbAdapter);
+
     // insert
     if (isset($_POST['a']) and $_POST['a'] == 'insert') {
         if (!empty($_POST['content']) and !empty($_POST['vid'])) {
@@ -47,6 +57,13 @@ try {
         header('location: index.php');
     }
 
+    //delete
+    if (isset($_GET['action']) and $_GET['action'] == 'delete') {
+        $commentId = $_GET['id'];
+        $comment->delete($commentId);
+        header('location: index.php');
+    }
+    
     //drop
     if (isset($_GET['action']) and $_GET['action'] == 'drop') {
         $comment->drop();
@@ -109,37 +126,20 @@ try {
             function displayTower($comment) {
                 $html = '';
                 if (isset($comment['comment_ref_ins']) and !empty($comment['comment_ref_ins'])) {
-                    //var_dump($tower['comment_tower']);
                     $html .= displayTower($comment['comment_ref_ins']);
                 }
                 if (!empty($comment)) {
+                    $deleteLink = '<a href="index.php?action=delete&id=' . $comment['_id'] . '">删除本条？</a>';
+                    $content = ($comment['status'] == Comment::STATUS_DELETED ? '<em style="color:gray;">该评论已被删除</em>' : $comment['content']);
                     $html .= '&nbsp;&nbsp;&nbsp;&nbsp;'
-                           . $comment['comment_userid'] . ' 于 ' . $comment->created_ataa . ' 说：' . $comment['content'] . '<br />';
+                           . $comment['comment_userid'] . ' 于 ' . $comment->created_ataa . ' 说：' . $content . ' ('.$deleteLink.')<br />';
                 }
-                /*global $i;
-                if (!empty($tower)) {
-                    if (isset($tower['comment_tower']) and !empty($tower['comment_tower'])) {
-                        //var_dump($tower['comment_tower']);
-                        $html .= displayTower($tower['comment_tower']);
-                    }
-                    $html .= '<p>&nbsp;&nbsp;&nbsp;&nbsp;'
-                          . $tower['comment_userid'] . '说：' . $tower['content'] . '</p><br />';
-
-                    $formId = 'LwordForm_' . $cmt['_id'] . '__' . ++$i;
-                    $html .= '<form name="' . $formId . '" id="' . $formId . '" action="index.php" method="post" accept-charset="utf-8">
-                            <textarea tabindex="2" rows="8" cols="50" onfocus="" onkeydown="ctlent(this,event);" spanid="auth_img_span_id_bottom" onclick="gReF.face(\'\', this, this);" spanidv="auth_img_span_id" onmousedown="gReF.auth(this);" id="content" name="content"></textarea>
-                            <input type="hidden" name="a" value="reply" />
-                            <input type="hidden" name="cmt_id" value="' . $cmt['_id'] . '" />
-                            <input type="submit" name="submit" />
-                        </form>';
-                }*/
                 return $html;
             }
 
             //echo '<pre>'; var_dump($comments);echo '</pre>';
 
             foreach ($comments as $cmt) {
-                //var_dump($cmt);die;
                 $formId = 'LwordForm_' . $cmt['_id'];
             ?>
     			<div class="LeaveWord">

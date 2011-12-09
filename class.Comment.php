@@ -9,9 +9,13 @@
  */
 class Comment
 {
+    const STATUS_PENDING = '1';
+    const STATUS_ACTIVED = '2';
+    const STATUS_DELETED = '3';
+    
     /**
      * the table name
-     * 
+     *
      * @var string
      */
     protected $_tableName = 'comment';
@@ -63,10 +67,14 @@ class Comment
      */
     public function __construct($dbAdapter)
     {
+        if (!$this->_tableName) {
+            throw new exception("Please set the table name!");
+        }
+        
         if (is_object($dbAdapter)) {
             $this->setDbAdapter($dbAdapter);
         } else {
-            throw new exception("Pleae provide database adapter!");
+            throw new exception("Please provide database adapter!");
         }
     }
 
@@ -88,12 +96,13 @@ class Comment
                 'ip' => $this->_getUserIp(),
                 'v_name' => $data['v_name'],
                 'content' => $data['content'],
-                'comment_ref' => array(),
+                'status' => self::STATUS_PENDING,
                 'created_at' => @date('Y-m-d H:i:s'),
+                'comment_ref' => array(),
             );
             //var_dump($info);die;
         }
-        $this->getDbAdapter()->insert('comment', $info);
+        $this->getDbAdapter()->insert($this->getTableName(), $info);
     }
 
     /**
@@ -107,7 +116,7 @@ class Comment
             $commentId = $data['comment_id'] ? : false;
             if ($commentId) {
                 $comment = $this->getDbAdapter()->findOne(
-                    'comment', array('_id' => $commentId)
+                    $this->getTableName(), array('_id' => $commentId)
                 );
                 $info = array(
                     'vid' => $comment['vid'],
@@ -119,12 +128,13 @@ class Comment
                     'ip' => $this->_getUserIp(),
                     'v_name' => $comment['v_name'],
                     'content' => $data['content'],
+                    'status' => self::STATUS_PENDING,
                     'created_at' => @date('Y-m-d H:i:s'),
                 );
 
                 // add ref comment
                 $info['comment_ref'] = $this->getDbAdapter()->createRef(
-                        "comment", $commentId
+                    $this->getTableName(), $commentId
                 );
 
                 //echo '<pre>'; var_dump($info);echo '</pre>';
@@ -160,6 +170,7 @@ class Comment
         $result = array();
         $commentList = $this->getDbAdapter()->findAll(
             $this->getTableName(),
+            array('status' => array('$ne' => self::STATUS_DELETED)),
             array('sort' => array('created_at' => -1))
         );
         foreach ($commentList as $comment) {
@@ -192,13 +203,29 @@ class Comment
     }
 
     /**
+     * delete the comment - not really delete but just set status = DELETED
+     */
+    public function delete($id)
+    {
+        $result = $this->getDbAdapter()->save(
+            $this->getTableName(),
+            array('_id' => $id),
+            array('status' => self::STATUS_DELETED)
+        );
+        return $result;
+    }
+    
+    /**
      * fetch all comments count number
      * 
      * @return int
      */
     public function total()
     {
-        $result = (int)$this->getDbAdapter()->count($this->getTableName());
+        $result = (int)$this->getDbAdapter()->count(
+            $this->getTableName(),
+            array('status' => array('$ne' => self::STATUS_DELETED))
+        );
         return $result;
     }
 
