@@ -326,7 +326,26 @@ final class MongoAdapter
     }
 
     /**
-     * do save
+     * do update, could be multiple
+     * 
+     * @param string $collectionName
+     * @param array $conditions
+     * @param array $newobj
+     * @param array $options
+     * @return boolean - If safe was set, returns an array containing the 
+     *                   status of the update. Otherwise, returns a boolean 
+     *                   representing if the array was not empty
+     */
+    public function update($collectionName, $conditions, $newobj, $options = array())
+    {
+        $collection = $this->_getCollection($collectionName);
+        $criteria = $this->_buildCriteria($conditions);
+        $result = $collection->update($criteria, $newobj, $options);
+        return $result;
+    }
+
+    /**
+     * do save, for only one document
      * 
      * @param string $collectionName
      * @param array $conditions
@@ -336,8 +355,8 @@ final class MongoAdapter
     public function save($collectionName, $conditions, $fields)
     {
         $collection = $this->_getCollection($collectionName);
-        $query = $this->_buildCriteria($conditions);
-        $row = $collection->findOne($query);
+        $criteria = $this->_buildCriteria($conditions);
+        $row = $collection->findOne($criteria);
         if ($row) {
             foreach ($fields as $field => $value) {
                 $row[$field] = $value;
@@ -358,8 +377,8 @@ final class MongoAdapter
     {
         $result = null;
         $collection = $this->_getCollection($collectionName);
-        $query = $this->_buildCriteria($conditions);
-        if ($row = $collection->findOne($query, $fields)) {
+        $criteria = $this->_buildCriteria($conditions);
+        if ($row = $collection->findOne($criteria, $fields)) {
             $result = new MongoCursorWrapper($row);
         }
         return $result;
@@ -487,23 +506,23 @@ final class MongoAdapter
      * @todo other conditions...
      * 
      * @param array $conditions
-     * @return array $query - queries in mongo format
+     * @return array $criteria - queries in mongo format
      */
     protected function _buildCriteria($conditions)
     {
-        $query = array();
+        $criteria = array();
         if (!empty($conditions) and is_array($conditions)) {
             foreach ($conditions as $key => $value) {
                 switch ($key) {
                     case '_id':
                         if (!($value instanceof MongoId)) {
-                            $query['_id'] = new MongoId($value);
+                            $criteria['_id'] = new MongoId($value);
                         }
                         break;
                 }
             }
         }
-        return $query;
+        return $criteria;
     }
 
     /**

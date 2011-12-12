@@ -63,6 +63,13 @@ try {
         $comment->delete($commentId);
         header('location: index.php');
     }
+
+    //insist on
+    if (isset($_GET['action']) and $_GET['action'] == 'insist') {
+        $commentId = $_GET['id'];
+        $comment->insist($commentId);
+        header('location: index.php');
+    }
     
     //drop
     if (isset($_GET['action']) and $_GET['action'] == 'drop') {
@@ -129,10 +136,13 @@ try {
                     $html .= displayTower($comment['comment_ref_ins']);
                 }
                 if (!empty($comment)) {
-                    $deleteLink = '<a href="index.php?action=delete&id=' . $comment['_id'] . '">删除本条？</a>';
+                    $deleteLink = '<a href="index.php?action=delete&id=' . $comment['_id'] . '">删除</a>';
+                    $insistLink = '<a href="index.php?action=insist&id=' . $comment['_id'] . '">顶[' . (int)$comment['nb_insist'] . ']</a>';
                     $content = ($comment['status'] == Comment::STATUS_DELETED ? '<em style="color:gray;">该评论已被删除</em>' : $comment['content']);
                     $html .= '&nbsp;&nbsp;&nbsp;&nbsp;'
-                           . $comment['comment_userid'] . ' 于 ' . $comment->created_ataa . ' 说：' . $content . ' ('.$deleteLink.')<br />';
+                           . '56' . $comment['locate'] . '网友 '
+                           . $comment['comment_userid'] . ' 于 ' . $comment->created_ataa 
+                           . ' 说：' . $content . '  ' . $deleteLink . ' ' . $insistLink . '<br />';
                 }
                 return $html;
             }
