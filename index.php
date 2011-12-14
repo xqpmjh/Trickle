@@ -1,86 +1,25 @@
 <?php
-include_once 'class.MongoAdapter.php';
-include_once 'class.Comment.php';
-
-// configs
-$config = array(
-        'servers'  => array(
-            '172.16.245.126:27017',
-        ),
-        'database' => 'test',
-);
-if (isset($_SERVER['REMOTE_ADDR']) and $_SERVER['REMOTE_ADDR'] == '127.0.0.1') {
-    // comment object
-    $config = array(
-        'servers'  => array(
-            'localhost:27018',
-            'localhost:27019',
-            'localhost:27020',
-        ),
-        'database' => 'test',
-        'username' => 'kim',
-        'password' => 'kim',
-    );
-}
+include_once 'inc.php';
 
 try {
     // comment object
     $dbAdapter = new MongoAdapter($config);
     $comment = new Comment($dbAdapter);
 
-    // insert
-    if (isset($_POST['a']) and $_POST['a'] == 'insert') {
-        if (!empty($_POST['content']) and !empty($_POST['vid'])) {
-            $data = array(
-                'vid' => $_POST['vid'],
-                'pct' => $_POST['pct'],
-                'v_userid' => $_POST['vuid'],
-                'comment_userid' => 'xqpmjh', 
-                'to_userid' => $_POST['vuid'],
-                'v_name' => $_POST['vname'],
-                'content' => $_POST['content'],
-            );
-            $comment->saveNew($data);
-        }
-        header('location: index.php');
+    // get pager
+    if (isset($_GET['page'])) {
+        $page = (int)$_GET['page'];
+    } else {
+        $page = 1;
     }
+    $limit = 5;
 
-    // reply
-    if (isset($_POST['a']) and $_POST['a'] == 'reply') {
-        if (!empty($_POST['content']) and !empty($_POST['cmt_id'])) {
-            $data = array(
-                'content' => $_POST['content'],
-                'comment_id' => $_POST['cmt_id'],
-            );
-            $comment->saveReply($data);
-        }
-        header('location: index.php');
-    }
-
-    //delete
-    if (isset($_GET['action']) and $_GET['action'] == 'delete') {
-        $commentId = $_GET['id'];
-        $comment->delete($commentId);
-        header('location: index.php');
-    }
-
-    //insist on
-    if (isset($_GET['action']) and $_GET['action'] == 'insist') {
-        $commentId = $_GET['id'];
-        $comment->insist($commentId);
-        header('location: index.php');
-    }
+    $comments = $comment->findAll($page, $limit);
     
-    //drop
-    if (isset($_GET['action']) and $_GET['action'] == 'drop') {
-        $comment->drop();
-        header('location: index.php');
-    }
-
-    $comments = $comment->findAll();
     //echo '<pre>'; var_dump($comments); echo '</pre>';die;
-    $total = $comment->total();
-
+    $totalNbComments = $comment->total();
+    $totalNbPages = ceil($totalNbComments / $limit); 
+    
 } catch (Exception $e) {
     echo $e->getMessage();
     die;
@@ -94,39 +33,47 @@ try {
     <meta name="keywords" 	 content="video,视频,上传视频,录制视频,视频下载,56视频,56FLV,FlV" />
     <title>视频留言接口</title>
     <!--第一步/共六步:包含JS LIB -->
-    <script type="text/javascript" src="http://www.56.com/js/fly56/lib.js"></script>
-    <script type="text/javascript" src="http://www.56.com/js/fly56/o_.js"></script>
-    <script type="text/javascript" src="http://www.56.com/js/fly56/oReview.js"></script>
-    <script type="text/javascript" sr-c="oReview.js"></script>
+    <script type="text/javascript" src="http://s1.56img.com/script/lib/jquery/jquery-1.4.4.min.js"></script>
+    <script type="text/javascript" src="http://s2.56img.com/script/page/common/v3/o_utf8.js"></script>
+    <script type="text/javascript" src="./oReview.js"></script>
 </head>
 <body>
     <!--第三步/共六步:把留言要加到的地方填上以下内容-->
     <!--留言内容 begin-->
     <br />
-    <a href="index.php?action=drop">Drop Comments</a>
+    <a href="api/comment.php?a=drop">Drop Comments</a>
     <br /><br />
     
     <div class="border" id="Lword">
-    	<div id="mb_review" clas="botop"></div>
+    	<div id="mb_review" class="botop"></div>
 	    <a id="CommentPlace" name="CommentPlace"></a>	
 	    <div id="LwordRepost" class="reViewForm"></div>
         <div id="LwordContent" style="">
             <div id="leaveWordContenMain" style="">
                 <div class="pn">&nbsp;
-                    <wbr><span class="disabled">共20页</span>&nbsp;
-                    <wbr><span class="disabled">首页</span>&nbsp;
-                    <wbr><span class="disabled">上页</span>&nbsp;
-                    <wbr><span class="current">1</span>&nbsp;
-                    <wbr><a href="javascript:gReF.pg(2)">2</a>&nbsp;
-                    <wbr><a href="javascript:gReF.pg(3)">3</a>&nbsp;
-                    <wbr><a href="javascript:gReF.pg(4)">4</a>&nbsp;
-                    <wbr><a href="javascript:gReF.pg(5)">5</a>&nbsp;
-                    <wbr>...&nbsp;<wbr><a href="javascript:gReF.pg(2)">下页</a>&nbsp;
-                    <wbr><a href="javascript:gReF.pg(20)">尾页</a>&nbsp;
-                    <wbr>
+                    <?php
+                    $pagesHtml = '<span class="disabled">共' . $totalNbPages . '页</span>&nbsp;'
+                               . '<span class="disabled"><a href="index.php">首页</a></span>&nbsp;';
+                    if ($page > 1) {
+                        $pagesHtml .= '<a href="index.php?page=' . ($page - 1) . '">上页</span>&nbsp;';
+                    }
+                    for ($curPage = 1; $curPage <= $totalNbPages; $curPage++) {
+                        if ($curPage == $page) {
+                            $pagesHtml .= '<span class="current">' . $curPage . '</span>&nbsp;';
+                        } else {
+                            $pagesHtml .= '<a href="index.php?page=' . ($curPage) . '">' . $curPage . '</a>&nbsp;';
+                        } 
+                    }
+                    if ($page < $totalNbPages) {
+                        $pagesHtml .= '<a href="index.php?page=' . ($page + 1) . '">下页</span>&nbsp;';
+                    }
+                    $pagesHtml .= '<a href="index.php?page=' . $totalNbPages . '">尾页</a>&nbsp;';
+                    echo $pagesHtml;
+                    ?>
                 </div>
-                &nbsp;<wbr><span id="cTotal" class="total">共<?php echo $total?>条评论</span>
+                &nbsp;<span id="cTotal" class="total">共<?php echo $totalNbComments ?>条评论</span>
             </div>
+            &nbsp;
 
             <?php
             $i = 0;
@@ -136,8 +83,8 @@ try {
                     $html .= displayTower($comment['comment_ref_ins']);
                 }
                 if (!empty($comment)) {
-                    $deleteLink = '<a href="index.php?action=delete&id=' . $comment['_id'] . '">删除</a>';
-                    $insistLink = '<a href="index.php?action=insist&id=' . $comment['_id'] . '">顶[' . (int)$comment['nb_insist'] . ']</a>';
+                    $deleteLink = '<a href="api/comment.php?a=delete&id=' . $comment['_id'] . '">删除</a>';
+                    $insistLink = '<a href="api/comment.php?a=insist&id=' . $comment['_id'] . '">顶[' . (int)$comment['nb_insist'] . ']</a>';
                     $content = ($comment['status'] == Comment::STATUS_DELETED ? '<em style="color:gray;">该评论已被删除</em>' : $comment['content']);
                     $html .= '&nbsp;&nbsp;&nbsp;&nbsp;'
                            . '56' . $comment['locate'] . '网友 '
@@ -165,7 +112,7 @@ try {
     				<div class="cmt">
     					<div id="LC_135490492" class="leave">
     					<!-- <img src="http://www.56.com/images/face/a/96.gif" border="0"> -->
-    					<wbr><?php echo $cmt['content']; ?></div>
+    					<?php echo $cmt['content']; ?></div>
     					&nbsp;
     					<?php echo displayTower($cmt['comment_ref_ins']); ?>
     					
@@ -173,11 +120,12 @@ try {
     				<div class="date">
     				    <span class="ope3"><a title="支持" href="javascript:gReF.ding(135490492);" id="ding_btn_135490492" class="up">&nbsp;</a><a href="javascript:;" onmousedown="gReF.ding(135490492)" id="ding_135490492"></a>
     				    <!--<a title="反对" href="javascript:;" id="dao_btn_135490492" onmousedown="gReF.dao(135490492)" class="down">&nbsp;</a><a href="javascript:;" onmousedown="gReF.dao(135490492)" id="dao_135490492">0</a>--></span>
-    				    <form name="<?php echo $formId; ?>" id="<?php echo $formId; ?>" action="index.php" method="post" accept-charset="utf-8">
-    				        <textarea tabindex="2" rows="8" cols="50" onfocus="" onkeydown="ctlent(this,event);" spanid="auth_img_span_id_bottom" onclick="gReF.face('',this,this);" spanidv="auth_img_span_id" onmousedown="gReF.auth(this);" id="content" name="content"></textarea>
+    				    <form name="<?php echo $formId; ?>" id="<?php echo $formId; ?>" action="api/comment.php" method="post" accept-charset="utf-8"  target="add_favorite">
+    				        <textarea tabindex="2" rows="8" cols="50" onfocus="gReF.focusReplyTop(this);" onkeydown="gToolF.ctrlEnter(this, event);" 
+    				        spanid="auth_img_span_id_bottom" onclick="gReF.face('',this,this);" spanidv="auth_img_span_id" onmousedown="gReF.openAuthBottom(this);" id="content" name="content"></textarea>
     				        <input type="hidden" name="a" value="reply" />
     				        <input type="hidden" name="cmt_id" value="<?php echo $cmt['_id']; ?>" />
-    				        <input type="submit" name="submit" />
+    				        <input type="submit" name="postSubmit" />
     				    </form>
         				<!-- <span class="ope1"><a href="javascript:;" onclick="">回复</a></span> -->
                     </div>
@@ -187,19 +135,19 @@ try {
         </div>
         
         <div class="reViewForm" id="LwordPost">
-            <form accept-charset="utf-8" action="index.php" name="LwordForm" id="LwordForm" onsubmit="" method="post">
+            <form accept-charset="utf-8" action="api/comment.php" name="LwordForm" id="LwordForm" onsubmit="document.charset='utf-8';return gReF.checkSubmit(this);" method="post" target="add_favorite">
                 <div class="lw_post">
 
                     <h3>我要说两句</h3>
                     <div class="face">
                         <img title="愤怒" alt="愤怒" src="http://www.56.com/images/face/a/angry.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_angry`]',this);">
-                        <wbr><img title="赞" alt="赞" src="http://www.56.com/images/face/a/cool.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_cool`]',this);">
-                        <wbr><img title="YY" alt="YY" src="http://www.56.com/images/face/a/heart.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_heart`]',this);">
-                        <wbr><img title="激动" alt="激动" src="http://www.56.com/images/face/a/lol.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_lol`]',this);">
-                        <wbr><img title="吐" alt="吐" src="http://www.56.com/images/face/a/35.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_35`]',this);">
-                        <wbr><img title="开心" alt="开心" src="http://www.56.com/images/face/a/36.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_36`]',this);">
-                        <wbr><img title="惊讶" alt="惊讶" src="http://www.56.com/images/face/a/53.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_53`]',this);">
-                        <wbr><img title="伤心" alt="伤心" src="http://www.56.com/images/face/a/96.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_96`]',this);">
+                        <img title="赞" alt="赞" src="http://www.56.com/images/face/a/cool.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_cool`]',this);">
+                        <img title="YY" alt="YY" src="http://www.56.com/images/face/a/heart.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_heart`]',this);">
+                        <img title="激动" alt="激动" src="http://www.56.com/images/face/a/lol.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_lol`]',this);">
+                        <img title="吐" alt="吐" src="http://www.56.com/images/face/a/35.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_35`]',this);">
+                        <img title="开心" alt="开心" src="http://www.56.com/images/face/a/36.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_36`]',this);">
+                        <img title="惊讶" alt="惊讶" src="http://www.56.com/images/face/a/53.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_53`]',this);">
+                        <img title="伤心" alt="伤心" src="http://www.56.com/images/face/a/96.gif" spanidv="auth_img_span_id" onclick="gReF.face('[`a_96`]',this);">
                     </div>
 
                     <!--
@@ -212,18 +160,22 @@ try {
                     <input type="hidden" name="vuid" value="naonao" />
                     <input type="hidden" name="a" value="insert" />
                     <input type="hidden" name="vname" value="哈哈哈" />
-                    <textarea tabindex="2" rows="8" cols="50" onfocus="" onkeydown="" spanid="auth_img_span_id_bottom" onclick="" spanidv="auth_img_span_id" onmousedown="" id="content" name="content"></textarea>
+                    
+                    <textarea tabindex="2" rows="8" cols="50" onfocus="gReF.focusReplyBottom(this);" onkeydown="gToolF.ctrlEnter(this, event);" 
+                    spanid="auth_img_span_id_bottom" onclick="" spanidv="auth_img_span_id" onmousedown="" id="content" name="content"></textarea>
 
                     <div class="loginfo">
                         <p>您好56网友，建议先<a href="javascript:gReF.loginForm();">登录</a>
                         <span>|</span><a target="_blank" href="http://reg.56.com/newreg/register/">注册</a></p>
                     </div>
                     <div class="btn">
-                        <p id="auth_img_p_" style="display:none;">
-                            <input name="auth_img" tabindex="3" id="auth_img" maxlength="4" type="text" autocomplete="false" spanidv="auth_img_span_id" onmousedown="gReF.auth(this);" style="ime-mode:disabled" size="4"><span id="auth_img_span_id"></span>
-                        </p>
                         <p>
-                            <input type="submit" value="提交评论" name="postSubmit">
+                            <div id="auth_img_p_bottom_comment" style="display:none;">
+                                <input name="auth_img_input" id="auth_img_input" maxlength="4" type="text" autocomplete="false" spanidv="auth_img_span_id_top" 
+                                    onmousedown="gReF.openAuthBottom(this);" style="ime-mode:disabled;" size="4" value="输入验证码" onfocus="gReF.clearAuthValue();" />
+                                <span id="auth_img_span_id_top"></span>
+                            </div>
+                            <input type="submit" value="提交评论" name="postSubmit" id="postSubmit">
                             <span class="sub_tips">Ctrl+回车 提交</span>
                         </p>
                     </div>
@@ -236,5 +188,7 @@ try {
 
 <!--留言内容 end-->		
 
+    <iframe name="add_favorite" id="add_favorite" src="http://www.56.com/domain.html" marginwidth="0" marginheight="0" frameborder="0" width="0" scrolling="0" height="0"></iframe>
+    
 </body>
 </html>

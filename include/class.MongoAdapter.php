@@ -405,6 +405,14 @@ final class MongoAdapter
 
         // if some operations need to apply
         if (is_array($operations) and !empty($operations)) {
+            if (isset($operations['skip'])) {
+                $entities = $entities->skip((int)$operations['skip']);
+                echo 'skip:'.(int)$operations['skip'];
+            }
+            if (isset($operations['limit'])) {
+                $entities = $entities->limit((int)$operations['limit']);
+                echo 'limit:'.(int)$operations['limit'];
+            }
             if (isset($operations['sort']) and is_array($operations['sort'])) {
                 $entities = $entities->sort($operations['sort']);
             }

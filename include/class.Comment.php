@@ -166,15 +166,21 @@ class Comment
      * find all comments and their replies list
      *
      * @see _getRefComments()
+     * @param int $page
+     * @param int $limit
      * @return array - the comments list
      */
-    public function findAll()
+    public function findAll($page = 1, $limit = 10)
     {
         $result = array();
         $commentList = $this->getDbAdapter()->findAll(
             $this->getTableName(),
             array('status' => array('$ne' => self::STATUS_DELETED)),
-            array('sort' => array('created_at' => -1))
+            array(
+                'limit' => $limit,
+                'skip' => ($page - 1) * $limit,
+                'sort' => array('created_at' => -1),
+            )
         );
         foreach ($commentList as $comment) {
             $comment = $this->_getRefComments($comment);
@@ -302,11 +308,7 @@ class Comment
      */
     public function _getLocate($ip)
     {
-        if (isset($_SERVER['REMOTE_ADDR']) and $_SERVER['REMOTE_ADDR'] == '127.0.0.1') {
-            $addr = $this->_convertip($ip, 'qqwry.dat');
-        } else {
-            $addr = $this->_convertip($ip, '/dev/shm/qqwry.dat');
-        }
+        $addr = $this->_convertip($ip, PATH_QQWRY);
         return $addr;
     }
     
