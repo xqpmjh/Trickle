@@ -1,5 +1,5 @@
 <?php
-include_once 'inc.php';
+require_once 'inc.php';
 
 try {
     // comment object
@@ -12,7 +12,7 @@ try {
     } else {
         $page = 1;
     }
-    $limit = 5;
+    $limit = 2;
 
     $comments = $comment->findAll($page, $limit);
     
@@ -34,15 +34,27 @@ try {
     <title>视频留言接口</title>
     <!--第一步/共六步:包含JS LIB -->
     <script type="text/javascript" src="http://s1.56img.com/script/lib/jquery/jquery-1.4.4.min.js"></script>
-    <script type="text/javascript" src="http://s2.56img.com/script/page/common/v3/o_utf8.js"></script>
+    <!-- <script type="text/javascript" src="http://s2.56img.com/script/page/common/v3/o_utf8.js"></script> -->
+    <script type="text/javascript" src="http://s2.56img.com/script/page/common/v3/o_utf8.js?v=1215v1"></script>
+    <script type="text/javascript" src="http://s2.56img.com/script/page/login/v3/login_2011_v1.js?v=1215v2"></script>
+
     <script type="text/javascript" src="./oReview.js"></script>
 </head>
 <body>
     <!--第三步/共六步:把留言要加到的地方填上以下内容-->
     <!--留言内容 begin-->
-    <br />
-    <a href="api/comment.php?a=drop">Drop Comments</a>
-    <br /><br />
+
+    <script type="text/javascript">
+    try {
+        document.write('Is logged in : ' + gToolF.gIsLogin() + "<br />");
+        document.write('User id : ' + usr.gLoginUser() + "<br />");
+    } catch (e) {
+        //
+    }
+    </script>
+    
+    <a href="api/commentApi.php?a=drop">Drop Comments</a>
+    &nbsp;<br /><br />
     
     <div class="border" id="Lword">
     	<div id="mb_review" class="botop"></div>
@@ -70,8 +82,8 @@ try {
                     $pagesHtml .= '<a href="index.php?page=' . $totalNbPages . '">尾页</a>&nbsp;';
                     echo $pagesHtml;
                     ?>
-                </div>
-                &nbsp;<span id="cTotal" class="total">共<?php echo $totalNbComments ?>条评论</span>
+                    &nbsp;<span id="cTotal" class="total">共<?php echo $totalNbComments ?>条评论</span>
+                </div> 
             </div>
             &nbsp;
 
@@ -83,59 +95,62 @@ try {
                     $html .= displayTower($comment['comment_ref_ins']);
                 }
                 if (!empty($comment)) {
-                    $deleteLink = '<a href="api/comment.php?a=delete&id=' . $comment['_id'] . '">删除</a>';
-                    $insistLink = '<a href="api/comment.php?a=insist&id=' . $comment['_id'] . '">顶[' . (int)$comment['nb_insist'] . ']</a>';
+                    $deleteLink = '<a href="api/commentApi.php?a=delete&id=' . $comment['_id'] . '">删除</a>';
                     $content = ($comment['status'] == Comment::STATUS_DELETED ? '<em style="color:gray;">该评论已被删除</em>' : $comment['content']);
                     $html .= '&nbsp;&nbsp;&nbsp;&nbsp;'
-                           . '56' . $comment['locate'] . '网友 '
+                           . '56' . $comment['locate'] . '网友  '
                            . $comment['comment_userid'] . ' 于 ' . $comment->created_ataa 
-                           . ' 说：' . $content . '  ' . $deleteLink . ' ' . $insistLink . '<br />';
+                           . ' 说：' . $content . '  ' . $deleteLink . '<br />';
                 }
                 return $html;
             }
 
             //echo '<pre>'; var_dump($comments);echo '</pre>';
 
-            foreach ($comments as $cmt) {
-                $formId = 'LwordForm_' . $cmt['_id'];
+            foreach ($comments as $comment) {
+                $formId = 'LwordForm_' . $comment['_id'];
+                $insistLink = '<a href="api/commentApi.php?a=insist&id=' . $comment['_id'] . '">顶[' . (int)$comment['nb_insist'] . ']</a>';
             ?>
     			<div class="LeaveWord">
                 	<div class="cmf">
     		            <div style="float:left;">
     			            <a style="font-weight: bold" href="http://xqpmjh.v.56.com" target="_blank"></a>
-    			            <a href="http://xqpmjh.56.com" target="_blank"><?php echo $cmt['v_userid']; ?></a>
+    			            <a href="http://xqpmjh.56.com" target="_blank"><?php echo $comment['v_userid']; ?></a>
     					</div>
     					<div class="MsgIco" onclick="_c.sendSms('xqpmjh')"></div>
-    					    [<?php echo $cmt['created_at']; ?> 在<a href="http://www.56.com/u89/v_<?php echo $cmt['vid'] ?>.html" target="_blank">
-    					    <span class="comSub"><?php echo $cmt['v_name'] ?></span></a> 说:
+    					    <?php echo $comment['created_at']; ?> 在 <a href="http://www.56.com/u89/v_<?php echo $comment['vid'] ?>.html" target="_blank">
+    					    <span class="comSub"><?php echo $comment['v_name'] ?></span></a> 说 (<?php echo 'status : '.$comment['status'] ?>) :
     				</div>
     				<div class="cmt">
     					<div id="LC_135490492" class="leave">
     					<!-- <img src="http://www.56.com/images/face/a/96.gif" border="0"> -->
-    					<?php echo $cmt['content']; ?></div>
-    					&nbsp;
-    					<?php echo displayTower($cmt['comment_ref_ins']); ?>
+    					<?php echo $comment['content']; ?></div><br /><?php echo displayTower($comment['comment_ref_ins']); ?>
     					
     				</div>
     				<div class="date">
-    				    <span class="ope3"><a title="支持" href="javascript:gReF.ding(135490492);" id="ding_btn_135490492" class="up">&nbsp;</a><a href="javascript:;" onmousedown="gReF.ding(135490492)" id="ding_135490492"></a>
-    				    <!--<a title="反对" href="javascript:;" id="dao_btn_135490492" onmousedown="gReF.dao(135490492)" class="down">&nbsp;</a><a href="javascript:;" onmousedown="gReF.dao(135490492)" id="dao_135490492">0</a>--></span>
-    				    <form name="<?php echo $formId; ?>" id="<?php echo $formId; ?>" action="api/comment.php" method="post" accept-charset="utf-8"  target="add_favorite">
-    				        <textarea tabindex="2" rows="8" cols="50" onfocus="gReF.focusReplyTop(this);" onkeydown="gToolF.ctrlEnter(this, event);" 
-    				        spanid="auth_img_span_id_bottom" onclick="gReF.face('',this,this);" spanidv="auth_img_span_id" onmousedown="gReF.openAuthBottom(this);" id="content" name="content"></textarea>
+    				    <span class="ope3">
+    				        <?php echo $insistLink ?>
+    				        <!-- <a title="支持" href="gReF.ding(135490492)" id="ding_btn_135490492" class="up"></a>
+    				        <a href="javascript:;" onmousedown="gReF.ding(135490492)" id="ding_135490492"></a> -->
+    				        <!--<a title="反对" href="javascript:;" id="dao_btn_135490492" onmousedown="gReF.dao(135490492)" class="down">&nbsp;</a><a href="javascript:;" onmousedown="gReF.dao(135490492)" id="dao_135490492">0</a>-->
+    				    </span>
+    				    <form name="<?php echo $formId; ?>" id="<?php echo $formId; ?>" action="api/commentApi.php" method="post" accept-charset="utf-8">
+    				        <textarea tabindex="2" rows="2" cols="50" onfocus="gReF.focusReplyTop(this);" onkeydown="gToolF.ctrlEnter(this, event);" 
+    				        spanid="auth_img_span_id_bottom" onclick="gReF.face('',this,this);" spanidv="auth_img_span_id" onmousedown="gReF.openAuthBottom(this);" name="content"></textarea>
     				        <input type="hidden" name="a" value="reply" />
-    				        <input type="hidden" name="cmt_id" value="<?php echo $cmt['_id']; ?>" />
+    				        <input type="hidden" name="cmt_id" value="<?php echo $comment['_id']; ?>" />
     				        <input type="submit" name="postSubmit" />
     				    </form>
         				<!-- <span class="ope1"><a href="javascript:;" onclick="">回复</a></span> -->
                     </div>
     			</div>
+    			<br /><hr />
 		    <?php } ?>
 		
         </div>
         
         <div class="reViewForm" id="LwordPost">
-            <form accept-charset="utf-8" action="api/comment.php" name="LwordForm" id="LwordForm" onsubmit="document.charset='utf-8';return gReF.checkSubmit(this);" method="post" target="add_favorite">
+            <form accept-charset="utf-8" action="api/commentApi.php" name="LwordForm" id="LwordForm" onsubmit="document.charset='utf-8';return gReF.checkSubmit(this);" method="post" target="add_favorite">
                 <div class="lw_post">
 
                     <h3>我要说两句</h3>
@@ -161,13 +176,16 @@ try {
                     <input type="hidden" name="a" value="insert" />
                     <input type="hidden" name="vname" value="哈哈哈" />
                     
-                    <textarea tabindex="2" rows="8" cols="50" onfocus="gReF.focusReplyBottom(this);" onkeydown="gToolF.ctrlEnter(this, event);" 
+                    <textarea tabindex="2" rows="2" cols="50" onfocus="gReF.focusReplyBottom(this);" onkeydown="gToolF.ctrlEnter(this, event);" 
                     spanid="auth_img_span_id_bottom" onclick="" spanidv="auth_img_span_id" onmousedown="" id="content" name="content"></textarea>
 
                     <div class="loginfo">
-                        <p>您好56网友，建议先<a href="javascript:gReF.loginForm();">登录</a>
+                        <p>您好56网友，建议先<a href="javascript:void(0);" onclick="gToolF.showLoginForm();">登录</a>
                         <span>|</span><a target="_blank" href="http://reg.56.com/newreg/register/">注册</a></p>
                     </div>
+                    
+                    <div id="regArea" style="display:none"></div>
+                    
                     <div class="btn">
                         <p>
                             <div id="auth_img_p_bottom_comment" style="display:none;">

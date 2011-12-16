@@ -1,5 +1,5 @@
 <?php
-if (isset($_GET['dg']) and $_GET['dg'] == 'ml'){
+if (isset($_GET['dg']) and $_GET['dg'] == 'ml') {
 	error_reporting(E_ALL ^ E_NOTICE);
 	ini_set ("display_errors", "On");
 }else{
@@ -26,7 +26,7 @@ define("STAT3_ON",FALSE);
 # ��
 require ROOT_DIR . "cfg.all.inc.php";
 require ROOT_DIR . "cfg.local.inc.php";
-require ROOT_DIR . "inc_mongo.php";
+require ROOT_DIR . "cfg.mongo.inc.php";
 
 # Autoload Function
 function __autoload($class)

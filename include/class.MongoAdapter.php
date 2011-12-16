@@ -246,7 +246,7 @@ final class MongoAdapter
                     $this->setConnection($conn);
                     
                     // for testing replica sets
-                    echo 'Debug: <br />'; var_dump($conn->getHosts());
+                    //echo 'Debug: <br />'; var_dump($conn->getHosts());
 
                 } catch (MongoConnectionException $e) {
                     throw new MongoConnectionException(
@@ -317,12 +317,16 @@ final class MongoAdapter
      * @param string $collectionName
      * @param array $data
      * @param boolean $nbSafeInsert - number of slaves that should get the copy 
-     * @return void
+     * @return boolean
      */
     public function insert($collectionName, $data, $nbSafeInsert = 1)
     {
         $collection = $this->_getCollection($collectionName);
-        $collection->insert($data, array('safe' => $nbSafeInsert));
+        $result = $collection->insert($data, array('safe' => $nbSafeInsert));
+        if (isset($result['ok']) and $result['ok'] == 1) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -407,11 +411,9 @@ final class MongoAdapter
         if (is_array($operations) and !empty($operations)) {
             if (isset($operations['skip'])) {
                 $entities = $entities->skip((int)$operations['skip']);
-                echo 'skip:'.(int)$operations['skip'];
             }
             if (isset($operations['limit'])) {
                 $entities = $entities->limit((int)$operations['limit']);
-                echo 'limit:'.(int)$operations['limit'];
             }
             if (isset($operations['sort']) and is_array($operations['sort'])) {
                 $entities = $entities->sort($operations['sort']);

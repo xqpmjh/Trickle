@@ -7,7 +7,7 @@
  * global review configs
  */
 var gReCfg = {
-	"host": "",
+	"host": ""
 };
 
 /**
@@ -19,11 +19,18 @@ var gReF = {
 	 * do validates
 	 */
 	checkSubmit: function(a) {
-		if (!gToolF.gIsLogin() && a.auth_img_input && a.auth_img_input.value == '') {
+		if (a.content && (a.content.value == '' || gToolF.chklengh(a.content.value) < 2)) {
+			gToolF.statMsg("RE_E_010", "#iframe_stat_call");
+			gToolF.alert("提示:您忘了填写评论内容哦，至少1个表情或2个字符！");
+			a.content.focus();
+			return false;
+		} else if (!gToolF.gIsLogin() && a.auth_img_input && a.auth_img_input.value == '') {
+			gToolF.statMsg("RE_E_011", "#iframe_stat_call");
 			gToolF.alert("提示：您忘了输入验证码哦！");
 			a.auth_img_input.focus();
 			return false;
 		} else if (!gToolF.gIsLogin() && a.auth_img_input && a.auth_img_input.value.length != 4) {
+			gToolF.statMsg("RE_E_011", "#iframe_stat_call");
 			gToolF.alert("您输入的验证码不足4位哦！");
 			a.auth_img_input.focus();
 			return false;
@@ -75,18 +82,20 @@ var gReF = {
 	 */
 	generateAuthImg: function() {
 		var img = '<a href="javascript:void(0);" onclick="gReF.changeAuth();">'
-			    + '<img onclick="gReF.changeAuth()" id="authImg" alt="换一张" '
-			    + 'border="0" src="' + gReCfg.host + 'api/comment.php?a=getAuth">'
+			    + '<img onclick="gReF.changeAuth()" id="authImg" name="authImg" alt="换一张" '
+			    + 'border="0" src="' + gReCfg.host + 'api/commentApi.php?a=getAuth">'
 			    + '</a>';
 		return img;
 	},
 
 	/**
 	 * change the auth image
+	 * name="authImg"
+	 * attach random numbers to prevent caching
 	 */
 	changeAuth: function() {
 		if (_.e('authImg')) {
-			_.e('authImg').src = gReCfg.host + 'api/comment.php?a=getAuth&sn=' + Math.random();
+			_.e('authImg').src = gReCfg.host + 'api/commentApi.php?a=getAuth&sn=' + Math.random();
 		} else {
 			gToolF.alert('auth image does not exists!')
 		}
@@ -94,6 +103,7 @@ var gReF = {
 
 	/**
 	 * clear the auth text value
+	 * name="auth_img_input"
 	 */
 	clearAuthValue: function() {
 		if (_.e('auth_img_input')) {
@@ -101,8 +111,14 @@ var gReF = {
 		} else {
 			gToolF.alert('auth input field does not exists!');
 		}
-	}
+	},
 
+	/**
+	 * when reply submitted and saved
+	 */
+	replyOk: function() {
+		parent.location.reload();
+	}
 };
 
 /***********************************************************************/
@@ -114,14 +130,53 @@ var gToolF = {
 	 * @todo check is user is logged in
 	 */
 	gIsLogin: function() {
-		return false;
+		var isLogin = '';
+		if (usr.gIsLogin() && usr.gLoginUser().substr(0,5) != "guest") {
+			//gReCfg.auth_img = false;//登录用户默认不需要验证码
+			isLogin = true;
+		} else {
+			//gReCfg.auth_img = true;
+			isLogin = false;
+		}
+		/*if(_.getCookie("auth_img_limit") > 0){
+			gReCfg.auth_img = false;
+		}*/
+
+		return isLogin;
 	},
 
+	/**
+	 * show the login form is unlogin
+	 * @todo to show the latest version
+	 */
+	showLoginForm: function() {
+		if (!this.gIsLogin()) {
+			show_login();
+		}
+	},
+	
 	/**
 	 * do alert
 	 */
 	alert: function(a) {
 		alert(a);
+	},
+
+	/**
+	 * do stat
+	 */
+	statMsg: function(note) {
+		note = note || 'comment';
+		setStat(note,3000);
+	},
+	
+	/**
+	 * check string length
+	 * will first replace all chars which are not ASCII to '00'
+	 * cause one chinese character gets 2 chars length
+	 */
+	chklengh: function(str) {
+		return str.replace(/[^\x00-\xff]/g, "00").length;
 	},
 
 	/**
@@ -148,4 +203,5 @@ var gToolF = {
 		}
 	}
 
-}
+};
+

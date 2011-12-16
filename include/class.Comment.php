@@ -9,9 +9,14 @@
  */
 class Comment
 {
-    const STATUS_PENDING = '1';
-    const STATUS_ACTIVED = '2';
-    const STATUS_DELETED = '3';
+    /**
+     * status of comment
+     * @var string
+     */
+    const STATUS_BADWORDS    = '1'; // has bad words （有黑词未审）
+    const STATUS_PENDING     = '2'; // waiting for approvement（待审）
+    const STATUS_APPROVED    = '3'; // is approved （已审）
+    const STATUS_DELETED     = '4'; // is deleted （并不是真的删除，只是不显示）
     
     /**
      * the table name
@@ -19,7 +24,7 @@ class Comment
      * @var string
      */
     protected $_tableName = 'comment';
-    
+
     /**
      * database adapter
      *
@@ -99,19 +104,20 @@ class Comment
                 'locate' => $this->_getLocate($ip),
                 'v_name' => $data['v_name'],
                 'content' => $data['content'],
-                'status' => self::STATUS_PENDING,
+                'status' => $data['status'],
                 'created_at' => @date('Y-m-d H:i:s'),
                 'comment_ref' => array(),
             );
             //var_dump($info);die;
         }
-        $this->getDbAdapter()->insert($this->getTableName(), $info);
+        return $this->getDbAdapter()->insert($this->getTableName(), $info);
     }
 
     /**
      * save reply
      *
      * @param array $data
+     * @return boolean
      */
     public function saveReply($data)
     {
@@ -126,7 +132,7 @@ class Comment
                     'vid' => $comment['vid'],
                     'pct' => $comment['pct'],
                     'v_userid' => $comment['v_userid'],
-                    'comment_userid' => 'xqpmjh' . rand(2, 2222),
+                    'comment_userid' => $data['comment_userid'],
                     'to_userid' => $comment['comment_userid'],
                     'scoring' => 3,
                     'nb_insist' => 0,
@@ -134,7 +140,7 @@ class Comment
                     'locate' => $this->_getLocate($ip),
                     'v_name' => $comment['v_name'],
                     'content' => $data['content'],
-                    'status' => self::STATUS_PENDING,
+                    'status' => $data['status'],
                     'created_at' => @date('Y-m-d H:i:s'),
                 );
                 // add ref comment
@@ -143,7 +149,7 @@ class Comment
                 );
                 //echo '<pre>'; var_dump($info);echo '</pre>';die;
             }
-            $this->getDbAdapter()->insert('comment', $info);
+            return $this->getDbAdapter()->insert('comment', $info);
         }
     }
 
@@ -277,14 +283,7 @@ class Comment
         // only for testing
         return $this->_randomip();
         
-        if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-        } else if (isset($_SERVER['HTTP_CLIENT_IP'])) {
-            $ip = $_SERVER['HTTP_CLIENT_IP'];
-        } else {
-            $ip = $_SERVER['REMOTE_ADDR'];
-        }
-        return $ip;
+        $ip = g::ip();
     }
 
     /**
