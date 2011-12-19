@@ -100,7 +100,7 @@ final class MongoAdapter
         return $this->_options;
     }
 
-	/**
+    /**
      * @param array $_options
      */
     public function setOptions ($_options)
@@ -108,7 +108,7 @@ final class MongoAdapter
         $this->_options = $_options;
     }
 
-	/**
+    /**
      * @return Mongo
      */
     public function getConnection()
@@ -116,7 +116,7 @@ final class MongoAdapter
         return $this->_connection;
     }
 
-	/**
+    /**
      * @param Mongo $connection
      */
     public function setConnection($connection)
@@ -140,7 +140,7 @@ final class MongoAdapter
         $this->_db = $db;
     }
 
-	/**
+    /**
      * @return array
      */
     public function getConfig()
@@ -148,7 +148,7 @@ final class MongoAdapter
         return $this->_config;
     }
 
-	/**
+    /**
      * @param array $config
      */
     public function setConfig($config)
