@@ -1,6 +1,6 @@
 <?php
 /**
- * @author kim (happy life lol)
+ * @author kim (happy life, happy PHP, lol)
  * @since 2011-11-28
  * @version 1.0.0
  */
@@ -213,7 +213,7 @@ final class MongoAdapter
                 // server informations
                 if (!empty($config['servers'])) {
                     if (is_array($config['servers'])) {
-                        $connectInfo .= (string)implode(',', $config['servers']);
+                        $connectInfo .= implode(',', $config['servers']);
                     } else {
                         $connectInfo .= (string)$config['servers'];
                     }
@@ -253,15 +253,26 @@ final class MongoAdapter
                             "Fails to connect : " . $e->getMessage());
                 }
                 
-                // get database
+                /**
+                 * get database and try to ping
+                 * 
+                 * by the time when this package is under development,
+                 * the small funny "bug" is still not fixed by the author
+                 * @link https://bugs.php.net/bug.php?id=60508
+                 */
                 $db = $conn->selectDB($dbname);
-                if (!$db) {
+                if (!$db or !($db instanceof MongoDB)) {
                     throw new MongoException("Unable to select database!");
+                }
+                try {
+                    $db->command(array("ping" => 1));
+                } catch (MongoCursorException $e) {
+                    throw new MongoConnectionException(
+                            "Fails to connect db : " . $e->getMessage());
                 }
 
                 // pass queries to slaves by default
                 $db->setSlaveOkay(true);
-
                 $this->setDb($db);
             } else {
                 throw new MongoException("Invalid configurations!");            
@@ -340,7 +351,8 @@ final class MongoAdapter
      *                   status of the update. Otherwise, returns a boolean 
      *                   representing if the array was not empty
      */
-    public function update($collectionName, $conditions, $newobj, $options = array())
+    public function update($collectionName, $conditions,
+                           $newobj, $options = array())
     {
         $collection = $this->_getCollection($collectionName);
         $criteria = $this->_buildCriteria($conditions);

@@ -6,6 +6,7 @@ if (isset($_GET['dg']) and $_GET['dg'] == 'ml') {
 	error_reporting(E_ALL ^ E_NOTICE ^ E_WARNING);
 	ini_set ("display_errors", 0);
 }
+
 //<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
 header ( "Content-type: text/html; charset=UTF-8" );
 # ��Ŀ¼
@@ -35,7 +36,9 @@ function __autoload($class)
 	$i= count($class) - 1;
 	$class[$i]= 'class.' . $class[$i];
 	$class= implode('/', $class);
-	include ROOT_DIR . 'include/' . $class . '.php';
+	if (!include($class . '.php')) {
+	    include_once ROOT_DIR . 'include/' . $class . '.php';
+	}
 }
 # ����:���뷽��·��
 function route($class, $method)
@@ -48,6 +51,7 @@ function route($class, $method)
 	$Object-> $method ();
 	return true;
 }
+
 # PHP��ݺ���
 function & O(& $o)
 {
@@ -133,6 +137,7 @@ function u_get_user_id($username= null)
 	}
 	return false;
 }
+
 # ����Ƿ��¼
 $username = u_get_username();
 $user_id  = u_get_user_id($username);
