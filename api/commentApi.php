@@ -14,7 +14,13 @@ try {
 
     // insert
     if ('insert' == $action) {
-        $passResponse = CommentValidate::doInsertValid(); 
+        // check if is development
+        if (IS_DEV) {
+            $passResponse = array(true, '提示：测试环境ok！', 'parent.gReF.replyOk();', '');;
+        } else {
+            $passResponse = CommentValidate::doInsertValid();
+        }
+
         /**
          * if pass validate, do insert
          * get comment user id, for unlogged in user, just name him/her '56com'
@@ -28,6 +34,12 @@ try {
         if (true == $passResponse[0]) {
             $vid = g::getUrlId($_POST['vid']);
             //$vid = '65273147';
+            if (IS_DEV) {
+                $status = Comment::STATUS_PENDING;
+            } else {
+                $status = CommentValidate::checkCommentStatus($_POST['content'], $vid, $_POST['pct']);
+            }
+
             $data = array(
                     'vid' => $_POST['vid'],
                     'pct' => $_POST['pct'],
@@ -36,7 +48,7 @@ try {
                     'to_userid' => $_POST['vuid'],
                     'v_name' => $_POST['vname'],
                     'content' => $_POST['content'],
-                    'status' => CommentValidate::checkCommentStatus($_POST['content'], $vid, $_POST['pct']),
+                    'status' => $status,
             );
             $response = $comment->saveNew($data);
         }
@@ -86,9 +98,11 @@ try {
      * PS: only works on testing server or production
      */
     if ('getAuth' == $action) {
-        header('P3P: CP="COR NOI CURa ADMa DSP DEVa PSAa PSDa OUR IND UNI PUR NAV"');
-        $valid_key = Auth::MakeAuth(75, 20, 4, 'num', true, '56zvcode');
-        header('Location:http://code.auth.56.com/index.php?key=' . $valid_key);
+        if (!IS_DEV) {
+            header('P3P: CP="COR NOI CURa ADMa DSP DEVa PSAa PSDa OUR IND UNI PUR NAV"');
+            $valid_key = Auth::MakeAuth(75, 20, 4, 'num', true, '56zvcode');
+            header('Location:http://code.auth.56.com/index.php?key=' . $valid_key);
+        }
         die();
     }
 

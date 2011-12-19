@@ -18,32 +18,43 @@ var gReF = {
 	/**
 	 * do validates
 	 */
-	checkSubmit: function(a) {
-		if (a.content && (a.content.value == '' || gToolF.chklengh(a.content.value) < 2)) {
+	checkSubmit: function(frm) {
+		
+		// match faces
+		var matchFaces = [];
+		if(frm.content && frm.content.value){
+			matchFaces = frm.content.value.match(/(\[`(a|x)_\w+`\])/g);
+		}
+		
+		if (frm.content && (frm.content.value == '' || gToolF.chklengh(frm.content.value) < 2)) {
 			gToolF.statMsg("RE_E_010", "#iframe_stat_call");
-			gToolF.alert("提示:您忘了填写评论内容哦，至少1个表情或2个字符！");
-			a.content.focus();
+			gToolF.alert("提示：您忘了填写评论内容哦，至少1个表情或2个字符！");
+			frm.content.focus();
 			return false;
-		} else if (!gToolF.gIsLogin() && a.auth_img_input && a.auth_img_input.value == '') {
+		} else if (matchFaces && matchFaces.length > 5) {
+			gToolF.alert("提示：您添加表情太多了哦，最多为5个！");
+			frm.content.focus();
+			return false;
+		} else if (!gToolF.gIsLogin() && frm.auth_img_input && frm.auth_img_input.value == '') {
 			gToolF.statMsg("RE_E_011", "#iframe_stat_call");
 			gToolF.alert("提示：您忘了输入验证码哦！");
-			a.auth_img_input.focus();
+			frm.auth_img_input.focus();
 			return false;
-		} else if (!gToolF.gIsLogin() && a.auth_img_input && a.auth_img_input.value.length != 4) {
+		} else if (!gToolF.gIsLogin() && frm.auth_img_input && frm.auth_img_input.value.length != 4) {
 			gToolF.statMsg("RE_E_011", "#iframe_stat_call");
 			gToolF.alert("您输入的验证码不足4位哦！");
-			a.auth_img_input.focus();
+			frm.auth_img_input.focus();
 			return false;
 		} else {
 	
 			// disable submit button
-			if (a.postSubmit) {
-				a.postSubmit.value = '提交中..';
-				a.postSubmit.disabled = true;
+			if (frm.postSubmit) {
+				frm.postSubmit.value = '提交中..';
+				frm.postSubmit.disabled = true;
 				setTimeout(function() {
 					try {
-						a.postSubmit.disabled = false;
-						a.postSubmit.value = '提交';
+						frm.postSubmit.disabled = false;
+						frm.postSubmit.value = '提交';
 					} catch(e) {}},
 					500
 				);
@@ -118,7 +129,30 @@ var gReF = {
 	 */
 	replyOk: function() {
 		parent.location.reload();
+	},
+
+	/**
+	 * get some face
+	 */
+	getFace: function(face, obj) {
+		try {
+			face = face || '';
+			if (obj) {
+				// find the form object
+				var i = 0;
+				while (obj.tagName != "FORM" && i < 10) {
+					obj = obj.parentNode;
+					i++;
+				}
+				if (obj) {
+					//gReF.contentFocus(document[obj.name].content);
+			 		document[obj.name].content.value += face;
+				}
+			}
+		} catch(e) {
+		}
 	}
+
 };
 
 /***********************************************************************/
