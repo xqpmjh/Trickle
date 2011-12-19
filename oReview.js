@@ -35,12 +35,12 @@ var gReF = {
 			gToolF.alert("提示：您添加表情太多了哦，最多为5个！");
 			frm.content.focus();
 			return false;
-		} else if (!gToolF.gIsLogin() && frm.auth_img_input && frm.auth_img_input.value == '') {
+		} else if (!gToolF.gIsAuthed() && frm.auth_img_input && frm.auth_img_input.value == '') {
 			gToolF.statMsg("RE_E_011", "#iframe_stat_call");
 			gToolF.alert("提示：您忘了输入验证码哦！");
 			frm.auth_img_input.focus();
 			return false;
-		} else if (!gToolF.gIsLogin() && frm.auth_img_input && frm.auth_img_input.value.length != 4) {
+		} else if (!gToolF.gIsAuthed() && frm.auth_img_input && frm.auth_img_input.value.length != 4) {
 			gToolF.statMsg("RE_E_011", "#iframe_stat_call");
 			gToolF.alert("您输入的验证码不足4位哦！");
 			frm.auth_img_input.focus();
@@ -82,7 +82,7 @@ var gReF = {
 	 */
 	openAuthBottom: function(obj) {
 		var o = _.e('auth_img_span_id_top');
-		if (o && !gToolF.gIsLogin() && o.innerHTML == '') {
+		if (o && !gToolF.gIsAuthed() && o.innerHTML == '') {
 			o.innerHTML = this.generateAuthImg();
 			_.e('auth_img_p_bottom_comment').style.display = '';
 		}
@@ -163,20 +163,18 @@ var gToolF = {
 	/**
 	 * @todo check is user is logged in
 	 */
-	gIsLogin: function() {
-		var isLogin = '';
+	gIsAuthed: function() {
+		var isAuthed = false;
 		if (usr.gIsLogin() && usr.gLoginUser().substr(0,5) != "guest") {
-			//gReCfg.auth_img = false;//登录用户默认不需要验证码
-			isLogin = true;
-		} else {
-			//gReCfg.auth_img = true;
-			isLogin = false;
+			//gReCfg.auth_img = false;
+			isAuthed = true;
 		}
-		/*if(_.getCookie("auth_img_limit") > 0){
-			gReCfg.auth_img = false;
-		}*/
-
-		return isLogin;
+	    // even guest can be authed until he/she filled the auth field.
+		if(_.getCookie("auth_img_limit") > 0){
+			//gReCfg.auth_img = false;
+			isAuthed = true;
+		}
+		return isAuthed;
 	},
 
 	/**
@@ -184,7 +182,7 @@ var gToolF = {
 	 * @todo to show the latest version
 	 */
 	showLoginForm: function() {
-		if (!this.gIsLogin()) {
+		if (!this.gIsAuthed()) {
 			show_login();
 		}
 	},

@@ -104,6 +104,7 @@ class Comment
                 'locate' => $this->_getLocate($ip),
                 'v_name' => $data['v_name'],
                 'content' => $data['content'],
+                'orgin' => $data['orgin'],
                 'status' => $data['status'],
                 'created_at' => @date('Y-m-d H:i:s'),
                 'comment_ref' => array(),
@@ -112,7 +113,7 @@ class Comment
         }
         return $this->getDbAdapter()->insert($this->getTableName(), $info);
     }
-
+    
     /**
      * save reply
      *

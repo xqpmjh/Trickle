@@ -25,32 +25,43 @@ try {
          * if pass validate, do insert
          * get comment user id, for unlogged in user, just name him/her '56com'
          */
-        if (CommentValidate::isGuest()) {
-            $commentUserId = trim(user_id);
-        } else {
-            $commentUserId = '56com';
-        }
-
         if (true == $passResponse[0]) {
-            $vid = g::getUrlId($_POST['vid']);
+            $commentUserId = CommentValidate::isGuest() ? '56com' : trim(user_id);
+
+            $vid = isset($_POST['vid']) ? g::getUrlId($_POST['vid']) : '';
+            $pct = isset($_POST['pct']) ? $_POST['pct'] : 1;
+            $vName = isset($_POST['vname']) ? $_POST['vname'] : '';
+            $vUserId = isset($_POST['v_userid']) ? urlencode($_POST['v_userid']) : '';
+            $content = isset($_POST['content']) ? $_POST['content'] : '';
+            $orgin = (isset($_POST['orgin']) and $_POST['orgin'] == 'T') ? $_POST['orgin'] : 'V';
+
             //$vid = '65273147';
             if (IS_DEV) {
                 $status = Comment::STATUS_PENDING;
             } else {
-                $status = CommentValidate::checkCommentStatus($_POST['content'], $vid, $_POST['pct']);
+                $status = CommentValidate::checkCommentStatus($content, $vid, $pct);
             }
 
             $data = array(
-                    'vid' => $_POST['vid'],
-                    'pct' => $_POST['pct'],
-                    'v_userid' => $_POST['vuid'],
+                    'vid' => $vid,
+                    'pct' => $pct,
+                    'v_userid' => $vUserId,
                     'comment_userid' => $commentUserId,
-                    'to_userid' => $_POST['vuid'],
-                    'v_name' => $_POST['vname'],
-                    'content' => $_POST['content'],
+                    'to_userid' => $vUserId,
+                    'v_name' => $vName,
+                    'content' => $content,
+                    'orgin' => $orgin,
                     'status' => $status,
             );
             $response = $comment->saveNew($data);
+            
+            /**
+             * do backup... to keep it simple, so just reuse the old interface for the moment
+             * @deprecated should be remove if no backup needed in the future
+             */
+            $db = new db($scfg['db']);
+            $rs = reviewUtf8::insertNew($db,$content,$vUserId,$vid,$commentUserId,$pct,$orgin);
+
         }
         $jsFunc = $passResponse[2];
         echo g::msg($passResponse[1]);

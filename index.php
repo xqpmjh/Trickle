@@ -172,7 +172,7 @@ try {
                     -->
                     <input type="hidden" name="vid" value="MTQ4NDM4MzA" />
                     <input type="hidden" name="pct" value="1" />
-                    <input type="hidden" name="vuid" value="naonao" />
+                    <input type="hidden" name="v_userid" value="naonao" />
                     <input type="hidden" name="a" value="insert" />
                     <input type="hidden" name="vname" value="哈哈哈" />
                     

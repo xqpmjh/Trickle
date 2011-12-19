@@ -46,11 +46,13 @@ class CommentValidate
         /**
          * logged in user doesn't need image auth, else need to check auth code
          */
-        if (!self::isGuest()) {
-            $isAuthPassed = true;
+        $authImg = isset($_POST['auth_img_input']) ? strtolower($_POST['auth_img_input']) : '';
+        if (self::isGuest() and 
+            (isset($_COOKIE['auth_img_limit']) and $_COOKIE['auth_img_limit'] == 0) and
+            (!$authImg or empty($_SESSION['auth']) or ($authImg != strtolower($_SESSION['auth'])))) {
+            $isAuthPassed = false;
         } else {
-            $authImg = isset($_POST['auth_img_input']) ? strtolower($_POST['auth_img_input']) : '';
-            $isAuthPassed = ($authImg and !empty($_SESSION['auth']) and ($authImg == strtolower($_SESSION['auth'])));
+            $isAuthPassed = true;
         }
 
         if ($isAuthPassed) {
@@ -109,6 +111,13 @@ class CommentValidate
 		    } else {
                 $_SESSION['comment_last_time'] = time();
                 $rs = array(true, '成功！', 'parent.gReF.replyOk();', 'E_000');
+
+                // if the guest/user pass the first time, then he/she will also be authorized in next 5 replies in 30 minutes.
+                if (self::isGuest()) {
+					$authImgLimit = (int)$_COOKIE['auth_img_limit'];
+					$authImgLimit = $authImgLimit ? --$authImgLimit : 2;
+                    setcookie('auth_img_limit', $authImgLimit, time() + 1800, '/', '56.com');
+                }
             }
             
         } else {
