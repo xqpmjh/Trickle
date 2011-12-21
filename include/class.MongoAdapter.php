@@ -6,11 +6,6 @@
  */
 
 /**
- * @see MongoCursorWrapper
- */
-require_once 'class.MongoCursorWrapper.php';
-
-/**
  * class MongoAdapter
  *
  * Simple Mongo operation wrapper
@@ -387,7 +382,7 @@ final class MongoAdapter
      * @param string $collectionName
      * @param array $conditions
      * @param array $fields
-     * @return MongoCursorWrapper - we wrap the mongo cursor by default
+     * @return MongoCursor
      */
     public function findOne($collectionName, $conditions, $fields = array())
     {
@@ -395,7 +390,7 @@ final class MongoAdapter
         $collection = $this->_getCollection($collectionName);
         $criteria = $this->_buildCriteria($conditions);
         if ($row = $collection->findOne($criteria, $fields)) {
-            $result = new MongoCursorWrapper($row);
+            $result = $row;
         }
         return $result;
     }
@@ -411,12 +406,11 @@ final class MongoAdapter
      * @param string $collectionName
      * @param array $query - the queries for find()
      * @param array $operations
-     * @return array - array of MongoCursorWrapper
+     * @return MongoCursor
      */
     public function findAll($collectionName, $query = null, $operations = null)
     {
         $collection = $this->_getCollection($collectionName);
-        $result = array();
         $entities = $collection->find($query);
 
         // if some operations need to apply
@@ -431,13 +425,7 @@ final class MongoAdapter
                 $entities = $entities->sort($operations['sort']);
             }
         }
-
-        // wrap the objects
-        while ($entities->hasNext()) {
-            $row = $entities->getNext();
-            $result[] = new MongoCursorWrapper($row);
-        }
-        return $result;
+        return $entities;
     }
 
     /**
@@ -459,15 +447,14 @@ final class MongoAdapter
      * 
      * @param string $collectionName
      * @param array $ref - the reference object
-     * @return array
+     * @return MongoCursor
      */
     public function getDbRef($collectionName, $ref)
     {
         $result = array();
         if (!empty($ref) and MongoDBRef::isRef($ref)) {
             $collection = $this->_getCollection($collectionName);
-            $refDoc = $collection->getDBRef($ref);
-            $result = new MongoCursorWrapper($refDoc);
+            $result = $collection->getDBRef($ref);
         }
         return $result;
     }
