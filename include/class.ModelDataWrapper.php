@@ -1,6 +1,6 @@
 <?php
 /**
- * class MongoCursorWrapper
+ * class ModelDataWrapper
  * 
  * data object wrapper
  *
@@ -9,7 +9,7 @@
  * @version 1.0.0
  * 
  */
-class MongoCursorWrapper implements arrayaccess
+class ModelDataWrapper implements arrayaccess
 {
     /**
      * @var mixed
