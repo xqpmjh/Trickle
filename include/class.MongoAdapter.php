@@ -341,13 +341,14 @@ final class MongoAdapter
      * @param string $collectionName
      * @param array $conditions
      * @param array $newobj
-     * @param array $options
+     * @param array $options - multiple is false by default which means we are
+     *                         allowed to update only one doc on one time
      * @return boolean - If safe was set, returns an array containing the 
      *                   status of the update. Otherwise, returns a boolean 
      *                   representing if the array was not empty
      */
     public function update($collectionName, $conditions,
-                           $newobj, $options = array())
+                           $newobj, $options = array('multiple' => false))
     {
         $collection = $this->_getCollection($collectionName);
         $criteria = $this->_buildCriteria($conditions);
@@ -428,6 +429,28 @@ final class MongoAdapter
         return $entities;
     }
 
+    /**
+     * do a "group by" liked operation
+     *
+     * @param string $collectionName
+     * @param array $keys - Fields to group by
+     * @param array $initial - Initial value of the aggregation counter object
+     * @param MongoCode|string $reduce - function that takes two arguments and 
+     *                            does the aggregation.
+     * @param array $options
+     * @return array - the group result
+     */
+    public function group($collectionName, $keys = array(), $initial = array(),
+                          $reduce, $options = array())
+    {
+        if (!($reduce instanceof MongoCode)) {
+            $reduce = new MongoCode($reduce);
+        }
+        $collection = $this->_getCollection($collectionName);
+        $result = $collection->group($keys, $initial, $reduce, $options);
+        return $result;
+    }
+    
     /**
      * count number of collections
      *
