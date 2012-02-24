@@ -26,25 +26,22 @@
  * $comment = new Comment($mongo);
  *
  * @todo
- * # MongoCollection:: remove() - delete function, should be impletment soon!!
- * 
- * # MongoCollection::batchInsert() - insert multiple records at one time.
  * # MongoDB::listCollections() - throw some exceptions if collection unexists?
  * # MongoDB::setProfilingLevel() - for profiling under development/testing?
  * # MongoDB::command - sending command to mongodb?
  * # MongoCollection::ensureIndex - enable user to adding indexes?
  * # MongoDB::execute - interface of executing javascript functions?
- * # Should MongoPool::setSize() - to limit the pool size? 
+ * # Should MongoPool::setSize() - to limit the pool size?
  * # MongoGridFS - for file upload cases?
  * # MongoTimestamp - and auto-sharding?
  * # MongoMinKey / MongoMaxKey - let some records be always popular on top?
- * 
+ *
  */
 final class MongoAdapter
 {
     /**
      * connection object
-     * 
+     *
      * @link http://www.php.net/manual/en/class.mongo.php
      * @var Mongo - instance of Mongo
      */
@@ -60,7 +57,7 @@ final class MongoAdapter
 
     /**
      * database configurations
-     * 
+     *
      * @var array $_config
      */
     protected $_config = array(
@@ -73,13 +70,13 @@ final class MongoAdapter
     /**
      * Mongo options
      * @link http://www.php.net/manual/en/mongo.connecting.php
-     * 
+     *
      * "Persistent connections are highly recommended and should always
      *  be used in production unless there is a compelling reason not to."
-     * 
+     *
      * "If you are using a replica set...
      *  the driver can automatically route reads to slaves."
-     * 
+     *
      * @var array $_options
      */
     protected $_options = array(
@@ -179,11 +176,11 @@ final class MongoAdapter
      * do connect store the Mongo instance
      * then select the database and store MongoDB instance
      * just before the first query
-     * 
+     *
      * @link http://www.php.net/manual/en/mongo.connecting.php
      * we are new using the URI format
-     * because it will auto reauthenticate after reconnect 
-     * 
+     * because it will auto reauthenticate after reconnect
+     *
      * @return MongoDB - return Mongo database object
      */
     protected function _connect()
@@ -217,7 +214,7 @@ final class MongoAdapter
                     if (count($config['servers']) > 1) {
                         $options = $this->getOptions();
                         $options['replicaSet'] = true;
-                        $this->setOptions($options);                        
+                        $this->setOptions($options);
                     }
                 } else {
                     throw new MongoException("Server configs missing!");
@@ -239,7 +236,7 @@ final class MongoAdapter
                     $options = $this->getOptions();
                     $conn = new Mongo($connectInfo, $options);
                     $this->setConnection($conn);
-                    
+
                     // for testing replica sets
                     //echo 'Debug: <br />'; var_dump($conn->getHosts());
 
@@ -247,10 +244,10 @@ final class MongoAdapter
                     throw new MongoConnectionException(
                             "Fails to connect : " . $e->getMessage());
                 }
-                
+
                 /**
                  * get database and try to ping
-                 * 
+                 *
                  * by the time when this package is under development,
                  * the small funny "bug" is still not fixed by the author
                  * @link https://bugs.php.net/bug.php?id=60508
@@ -260,7 +257,7 @@ final class MongoAdapter
                     throw new MongoException("Unable to select database!");
                 }
                 try {
-                    $db->command(array("ping" => 1));
+                    //$db->command(array("ping" => 1));
                 } catch (MongoCursorException $e) {
                     throw new MongoConnectionException(
                             "Fails to connect db : " . $e->getMessage());
@@ -270,7 +267,7 @@ final class MongoAdapter
                 $db->setSlaveOkay(true);
                 $this->setDb($db);
             } else {
-                throw new MongoException("Invalid configurations!");            
+                throw new MongoException("Invalid configurations!");
             }
         }
 
@@ -279,7 +276,7 @@ final class MongoAdapter
 
     /**
      * get collection object
-     * 
+     *
      * @param string $collectionName
      * @return MongoCollection
      */
@@ -291,7 +288,7 @@ final class MongoAdapter
             if ($collection instanceof MongoCollection) {
                 return $collection;
             } else {
-                throw new MongoException("Unknow collection!");                
+                throw new MongoException("Unknow collection!");
             }
         } else {
             throw new MongoException("Collection name missing!");
@@ -299,7 +296,7 @@ final class MongoAdapter
     }
 
     /**
-     * Disconnect : if you are connected to a replica set, 
+     * Disconnect : if you are connected to a replica set,
      * close() will only close the connection to the primary.
      *
      * @return void
@@ -314,15 +311,15 @@ final class MongoAdapter
 
     /**
      * do insert
-     * 
+     *
      * @link http://www.php.net/manual/en/mongo.writes.php
-     * "To get a response from the database, use the safe option, 
+     * "To get a response from the database, use the safe option,
      *  available for all types of writes. This option will make sure that
      *  the database has the write before returning success."
-     * 
+     *
      * @param string $collectionName
      * @param array $data
-     * @param boolean $nbSafeInsert - number of slaves that should get the copy 
+     * @param boolean $nbSafeInsert - number of slaves that should get the copy
      * @return boolean
      */
     public function insert($collectionName, $data, $nbSafeInsert = 1)
@@ -336,33 +333,58 @@ final class MongoAdapter
     }
 
     /**
+     * do multiple insert
+     *
+     * @todo there is a bug with batchInsert that wait to fix before using it.
+     * E11000 duplicate key error index: ...
+     *
+     * @param string $collectionName
+     * @param array $data - An array of arrays
+     * @param boolean $nbSafeInsert - number of slaves that should get the copy
+     * @return boolean
+     */
+    public function batchInsert($collectionName, $data, $nbSafeInsert = 1)
+    {
+        $collection = $this->_getCollection($collectionName);
+        $result = $collection->batchInsert($data, array('safe' => $nbSafeInsert));
+        if (isset($result['ok']) and $result['ok'] == 1) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * do update, could be multiple
-     * 
+     *
      * @param string $collectionName
      * @param array $conditions
      * @param array $newobj
-     * @param array $options - multiple is false by default which means we are
-     *                         allowed to update only one doc on one time
-     * @return boolean - If safe was set, returns an array containing the 
-     *                   status of the update. Otherwise, returns a boolean 
-     *                   representing if the array was not empty
+     * @param array $options - "multiple" is false by default which means
+     *                         we can update only one doc on one time.
+     *                         "safe" is true which means we need to wait for
+     *                         update result, instead of always returning true.
+     * @return boolean - true on successed, false on failed
      */
-    public function update($collectionName, $conditions,
-                           $newobj, $options = array('multiple' => false))
+    public function update($collectionName, $conditions, $newobj,
+        $options = array('multiple' => false, 'safe' => true))
     {
         $collection = $this->_getCollection($collectionName);
         $criteria = $this->_buildCriteria($conditions);
         $result = $collection->update($criteria, $newobj, $options);
-        return $result;
+        if (true === $result or
+            (true == $result['updatedExisting'] and 1 == $result['ok'])) {
+            return true;
+        }
+        return false;
     }
 
     /**
      * do save, for only one document
-     * 
+     *
      * @param string $collectionName
      * @param array $conditions
      * @param array $fields - the fields and values to save
-     * @return array|bool
+     * @return bool
      */
     public function save($collectionName, $conditions, $fields)
     {
@@ -374,56 +396,80 @@ final class MongoAdapter
                 $row[$field] = $value;
             }
         }
-        return $collection->save($row);
+        $result = $collection->save($row) ? true : false;
+        return $result;
+    }
+
+    /**
+     * do remove, for only one record by default, in safe mode
+     *
+     * @link http://www.php.net/manual/en/mongocollection.remove.php
+     *
+     * @param array $criteria
+     * @param array $options - 1) one record every time
+     *                         2) safe mode: wait for respond from MongoDB
+     * @return bool
+     */
+    public function remove($collectionName, $criteria = array(),
+        $options = array('justOne' => true, 'safe' => true))
+    {
+        $collection = $this->_getCollection($collectionName);
+        $result = $collection->remove($criteria, $options);
+        //var_dump($result);
+        if (isset($result['ok']) and $result['ok'] and
+            isset($result['n']) and $result['n'] > 0 and !$result['err']) {
+            return true;
+        }
+        return false;
     }
 
     /**
      * find one record
-     * 
+     *
      * @param string $collectionName
      * @param array $conditions
      * @param array $fields
-     * @return MongoCursor
+     * @return array|null - return value is defined at:
+     *         http://www.php.net/manual/en/mongocollection.findone.php
      */
     public function findOne($collectionName, $conditions, $fields = array())
     {
-        $result = null;
         $collection = $this->_getCollection($collectionName);
         $criteria = $this->_buildCriteria($conditions);
-        if ($row = $collection->findOne($criteria, $fields)) {
-            $result = $row;
-        }
+        $result = $collection->findOne($criteria, $fields);
         return $result;
     }
 
     /**
      * find all the records
-     * 
+     *
      * @todo
      * MongoCursor::addOption()
      * MongoCollection::group()
      * MongoCursor::limit() / MongoCursor::skip()
-     * 
+     *
      * @param string $collectionName
-     * @param array $query - the queries for find()
+     * @param array $fields - Fields of the results to return
+     * @param array $query - The fields for which to search
      * @param array $operations
      * @return MongoCursor
      */
-    public function findAll($collectionName, $query = null, $operations = null)
+    public function findAll($collectionName, $fields = array(),
+                            $query = array(), $operations = null)
     {
         $collection = $this->_getCollection($collectionName);
-        $entities = $collection->find($query);
+        $entities = $collection->find($query, $fields);
 
         // if some operations need to apply
         if (is_array($operations) and !empty($operations)) {
+            if (isset($operations['sort']) and is_array($operations['sort'])) {
+                $entities = $entities->sort($operations['sort']);
+            }
             if (isset($operations['skip'])) {
                 $entities = $entities->skip((int)$operations['skip']);
             }
             if (isset($operations['limit'])) {
                 $entities = $entities->limit((int)$operations['limit']);
-            }
-            if (isset($operations['sort']) and is_array($operations['sort'])) {
-                $entities = $entities->sort($operations['sort']);
             }
         }
         return $entities;
@@ -435,7 +481,7 @@ final class MongoAdapter
      * @param string $collectionName
      * @param array $keys - Fields to group by
      * @param array $initial - Initial value of the aggregation counter object
-     * @param MongoCode|string $reduce - function that takes two arguments and 
+     * @param MongoCode|string $reduce - function that takes two arguments and
      *                            does the aggregation.
      * @param array $options
      * @return array - the group result
@@ -450,7 +496,7 @@ final class MongoAdapter
         $result = $collection->group($keys, $initial, $reduce, $options);
         return $result;
     }
-    
+
     /**
      * count number of collections
      *
@@ -467,10 +513,11 @@ final class MongoAdapter
 
     /**
      * get reference document
-     * 
+     *
      * @param string $collectionName
      * @param array $ref - the reference object
-     * @return MongoCursor
+     * @return array - return value is defined at:
+     *         http://www.php.net/manual/en/mongocollection.getdbref.php
      */
     public function getDbRef($collectionName, $ref)
     {
@@ -507,17 +554,17 @@ final class MongoAdapter
 
     /**
      * drop the collection, example of response:
-     * 
+     *
      * success:
      * array(4) { ["nIndexesWas"]=> float(1)
-     *            ["msg"]=> string(30) "indexes dropped for collection" 
+     *            ["msg"]=> string(30) "indexes dropped for collection"
      *            ["ns"]=> string(12) "test.comment"
      *            ["ok"]=> float(1) }
-     *            
-     * fails:            
+     *
+     * fails:
      * array(2) { ["errmsg"]=> string(12) "ns not found"
      *            ["ok"]=> float(0) }
-     * 
+     *
      * @param string $collectionName
      * @return true
      */
@@ -534,9 +581,9 @@ final class MongoAdapter
 
     /**
      * build criterias by conditions array provided
-     * 
+     *
      * @todo other conditions...
-     * 
+     *
      * @param array $conditions
      * @return array $criteria - queries in mongo format
      */
@@ -550,6 +597,9 @@ final class MongoAdapter
                         if (!($value instanceof MongoId)) {
                             $criteria['_id'] = new MongoId($value);
                         }
+                        break;
+                    default:
+                        $criteria[$key] = $value;
                         break;
                 }
             }
@@ -569,5 +619,5 @@ final class MongoAdapter
         $this->_connection = null;
     }
 
-} 
+}
 
