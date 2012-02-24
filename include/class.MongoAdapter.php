@@ -566,17 +566,21 @@ final class MongoAdapter
      *            ["ok"]=> float(0) }
      *
      * @param string $collectionName
+     * @param string|false $confirm - "I_KNOW_WHAT_I_AM_DOING" :
+     *                              only when you know what you are doing!
      * @return true
      */
-    public function drop($collectionName)
+    public function drop($collectionName, $confirm = false)
     {
-        $collection = $this->_getCollection($collectionName);
-        $result = $collection->drop();
-        if (isset($result['ok']) and !$result['ok']) {
-            throw new MongoException(
-                    "Unable to drop collection : " . $collectionName);
+        if ("I_KNOW_WHAT_I_AM_DOING" === $confirm) {
+            $collection = $this->_getCollection($collectionName);
+            $result = $collection->drop();
+            if (isset($result['ok']) and !$result['ok']) {
+                throw new MongoException(
+                        "Unable to drop collection : " . $collectionName);
+            }
+            return true;
         }
-        return true;
     }
 
     /**
