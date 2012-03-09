@@ -553,6 +553,19 @@ final class MongoAdapter
     }
 
     /**
+     * get list of collections of current database
+     * @link http://www.php.net/manual/en/mongodb.listcollections.php
+     *
+     * @return array
+     */
+    public function listCollections()
+    {
+        $this->_connect();
+        $result = $this->getDb()->listCollections();
+        return $result;
+    }
+
+    /**
      * drop the collection, example of response:
      *
      * success:
@@ -573,11 +586,14 @@ final class MongoAdapter
     public function drop($collectionName, $confirm = false)
     {
         if ("I_KNOW_WHAT_I_AM_DOING" === $confirm) {
-            $collection = $this->_getCollection($collectionName);
-            $result = $collection->drop();
-            if (isset($result['ok']) and !$result['ok']) {
-                throw new MongoException(
+            $cList = $this->listCollections();
+            if (in_array($collectionName, $cList)) {
+                $collection = $this->_getCollection($collectionName);
+                $result = $collection->drop();
+                if (isset($result['ok']) and !$result['ok']) {
+                    throw new MongoException(
                         "Unable to drop collection : " . $collectionName);
+                }
             }
             return true;
         }
