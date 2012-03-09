@@ -556,12 +556,25 @@ final class MongoAdapter
      * get list of collections of current database
      * @link http://www.php.net/manual/en/mongodb.listcollections.php
      *
-     * @return array
+     * @param bool $isReturnNames - true: return names
+     *                              false: return original objects
+     * @return array - array of collection objects or names
      */
-    public function listCollections()
+    public function listCollections($isReturnNames = true)
     {
+        $result = array();
         $this->_connect();
-        $result = $this->getDb()->listCollections();
+        $collections = $this->getDb()->listCollections();
+        if ($isReturnNames) {
+            $needle = (string)$this->getDb() . '.';
+            foreach ($collections as $c) {
+                $cName = (string)$c;
+                $pos = strpos($cName, $needle) + strlen($needle);
+                $result[] = substr($cName, $pos);
+            }
+        } else {
+            $result = $collections;
+        }
         return $result;
     }
 
@@ -586,7 +599,7 @@ final class MongoAdapter
     public function drop($collectionName, $confirm = false)
     {
         if ("I_KNOW_WHAT_I_AM_DOING" === $confirm) {
-            $cList = $this->listCollections();
+            $cList = $this->listCollections(true);
             if (in_array($collectionName, $cList)) {
                 $collection = $this->_getCollection($collectionName);
                 $result = $collection->drop();
