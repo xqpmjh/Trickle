@@ -27,7 +27,7 @@
  *
  * @todo
  * # collectionExists(), see MongoDB::listCollections()
- *                       check if collection unexists?
+ *                      check if collection unexists?
  * # MongoDB::setProfilingLevel() - for profiling under development/testing?
  * # MongoDB::command - sending command to mongodb?
  * # MongoCollection::ensureIndex - enable user to adding indexes?
