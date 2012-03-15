@@ -380,6 +380,24 @@ final class MongoAdapter
     }
 
     /**
+     * do update with @set operation
+     *
+     * @param string $collectionName
+     * @param array $conditions
+     * @param array $newDoc - the new document for update
+     * @param array $options - see update()
+     * @return boolean - true on successed, false on failed
+     */
+    public function updateOpSet($collectionName, $conditions, $newDoc,
+        $options = array('multiple' => false, 'safe' => true))
+    {
+        $newobj = array('$set' => (array)$newDoc);
+        $result = $this->update($collectionName, $conditions,
+                                $newobj, $options);
+        return $result;
+    }
+
+    /**
      * do save, for only one document
      *
      * @param string $collectionName
