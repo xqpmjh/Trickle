@@ -213,9 +213,11 @@ final class MongoAdapter
 
                     // is multiple servers then it should be replica set
                     if (count($config['servers']) > 1) {
-                        $options = $this->getOptions();
-                        $options['replicaSet'] = true;
-                        $this->setOptions($options);
+                        if (isset($config['replicaSet'])) {
+                            $options = $this->getOptions();
+                            $options['replicaSet'] = $config['replicaSet'];
+                            $this->setOptions($options);
+                        }
                     }
                 } else {
                     throw new MongoException("Server configs missing!");
