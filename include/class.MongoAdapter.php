@@ -213,7 +213,8 @@ final class MongoAdapter
 
                     // is multiple servers then it should be replica set
                     if (count($config['servers']) > 1) {
-                        if (isset($config['replicaSet'])) {
+                        if (isset($config['replicaSet']) and
+                            !empty($config['replicaSet'])) {
                             $options = $this->getOptions();
                             $options['replicaSet'] = $config['replicaSet'];
                             $this->setOptions($options);
@@ -237,6 +238,7 @@ final class MongoAdapter
                  */
                 try {
                     $options = $this->getOptions();
+                    //echo $connectInfo . '<br />';
                     $conn = new Mongo($connectInfo, $options);
                     $this->setConnection($conn);
 
