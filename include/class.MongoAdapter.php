@@ -218,6 +218,7 @@ final class MongoAdapter
                             $options = $this->getOptions();
                             $options['replicaSet'] = $config['replicaSet'];
                             $this->setOptions($options);
+                            //var_dump($options);
                         }
                     }
                 } else {
@@ -240,7 +241,6 @@ final class MongoAdapter
                     $options = $this->getOptions();
                     //echo $connectInfo . '<br />';
                     $conn = new Mongo($connectInfo, $options);
-                    $this->setConnection($conn);
 
                     // for testing replica sets
                     //echo 'Debug: <br />'; var_dump($conn->getHosts());
@@ -249,6 +249,10 @@ final class MongoAdapter
                     throw new MongoConnectionException(
                             "Fails to connect : " . $e->getMessage());
                 }
+
+                // pass queries to slaves by default
+                $conn->setSlaveOkay(true);
+                $this->setConnection($conn);
 
                 /**
                  * get database and try to ping
@@ -268,8 +272,6 @@ final class MongoAdapter
                             "Fails to connect db : " . $e->getMessage());
                 }
 
-                // pass queries to slaves by default
-                $db->setSlaveOkay(true);
                 $this->setDb($db);
             } else {
                 throw new MongoException("Invalid configurations!");
