@@ -218,7 +218,6 @@ final class MongoAdapter
                             $options = $this->getOptions();
                             $options['replicaSet'] = $config['replicaSet'];
                             $this->setOptions($options);
-                            //var_dump($options);
                         }
                     }
                 } else {
@@ -233,13 +232,20 @@ final class MongoAdapter
                     throw new MongoException("Database configs not found!");
                 }
 
+                // if timeout is set
+                if (isset($config['timeout']) and !empty($config['timeout'])) {
+                    $options = $this->getOptions();
+                    $options['timeout'] = $config['timeout'];
+                    $this->setOptions($options);
+                }
+
                 /**
                  * get connection
                  * @todo do logs?
                  */
                 try {
                     $options = $this->getOptions();
-                    //echo $connectInfo . '<br />';
+                    //echo $connectInfo . '<br />'; var_dump($options); echo '<br />';die;
                     $conn = new Mongo($connectInfo, $options);
 
                     // for testing replica sets
