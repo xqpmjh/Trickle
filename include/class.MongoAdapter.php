@@ -251,9 +251,14 @@ final class MongoAdapter
                     // for testing replica sets
                     //echo 'Debug: <br />'; var_dump($conn->getHosts());
 
-                } catch (MongoConnectionException $e) {
-                    throw new MongoConnectionException(
-                            "Fails to connect : " . $e->getMessage());
+                } catch (Exception $e) {
+                    try {
+                        unset($conn);
+                        $conn = new Mongo($connectInfo, $options);
+                    } catch (Exception $e) {
+                        throw new MongoConnectionException(
+                                "Fails to connect : " . $e->getMessage());
+                    }
                 }
 
                 // pass queries to slaves by default
