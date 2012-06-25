@@ -23,7 +23,7 @@
  * @tutorial
  * it's recommended to use the adapter together with your model classes:
  * $mongo = new MongoAdapter($config);
- * $comment = new Comment($mongo);
+ * $foo = new foo($mongo);
  *
  * @todo
  * # collectionExists(), see MongoDB::listCollections()
@@ -69,6 +69,13 @@ final class MongoAdapter
     );
 
     /**
+     * the last insert object id
+     *
+     * @var MongoId
+     */
+    protected $_lastInsertId = null;
+
+    /**
      * Mongo options
      * @link http://www.php.net/manual/en/mongo.connecting.php
      *
@@ -86,6 +93,22 @@ final class MongoAdapter
     );
 
     /**
+     * @return the $_lastInsertId
+     */
+    public function getLastInsertId ()
+    {
+        return $this->_lastInsertId;
+    }
+
+	/**
+     * @param MongoId $_lastInsertId
+     */
+    public function setLastInsertId ($_lastInsertId)
+    {
+        $this->_lastInsertId = $_lastInsertId;
+    }
+
+	/**
      * @return array $_options
      */
     public function getOptions ()
@@ -169,7 +192,7 @@ final class MongoAdapter
         if (is_array($config) and !empty($config)) {
             $this->setConfig($config);
         } else {
-            throw new MongoException("Pleae provide connection configs!");
+            throw new MongoException("Please provide connection configs!");
         }
     }
 
@@ -193,16 +216,6 @@ final class MongoAdapter
                 // init connection informations, using URI format
                 $connectInfo = 'mongodb://';
 
-                /**
-                 * auth information
-                 * @todo what if a username got ':' at the end?
-                 * @todo what if a password got '@' at the end?
-                 */
-                if (isset($config['username']) && isset($config['password'])) {
-                    $connectInfo .= (string)$config['username'] . ':'
-                                  . (string)$config['password'] . '@';
-                }
-
                 // server informations
                 if (!empty($config['servers'])) {
                     if (is_array($config['servers'])) {
@@ -224,14 +237,6 @@ final class MongoAdapter
                     throw new MongoException("Server configs missing!");
                 }
 
-                // database name
-                if (!empty($config['database'])) {
-                    $dbname = (string)$config['database'];
-                    $connectInfo .= '/' . $dbname;
-                } else {
-                    throw new MongoException("Database configs not found!");
-                }
-
                 // if timeout is set
                 if (isset($config['timeout']) and !empty($config['timeout'])) {
                     $options = $this->getOptions();
@@ -245,7 +250,8 @@ final class MongoAdapter
                  */
                 try {
                     $options = $this->getOptions();
-                    //echo $connectInfo . '<br />'; var_dump($options); echo '<br />';die;
+                    //header('cinfo: ' . $connectInfo);
+                    //var_dump($options); echo '<br />';die;
                     $conn = new Mongo($connectInfo, $options);
 
                     // for testing replica sets
@@ -262,7 +268,7 @@ final class MongoAdapter
                 }
 
                 // pass queries to slaves by default
-                $conn->setSlaveOkay(true);
+                //$conn->setSlaveOkay(true);
                 $this->setConnection($conn);
 
                 /**
@@ -272,10 +278,39 @@ final class MongoAdapter
                  * the small funny "bug" is still not fixed by the author
                  * @link https://bugs.php.net/bug.php?id=60508
                  */
-                $db = $conn->selectDB($dbname);
-                if (!$db or !($db instanceof MongoDB)) {
-                    throw new MongoException("Unable to select database!");
+
+                // database name
+                if (!empty($config['database'])) {
+                    $dbname = (string)$config['database'];
+                    //$connectInfo .= '/' . $dbname;
+                    $db = $conn->selectDB($dbname);
+                    if (!$db or !($db instanceof MongoDB)) {
+                        throw new MongoException("Unable to select database!");
+                    }
+                } else {
+                    throw new MongoException("Database configs not found!");
                 }
+
+                /**
+                 * auth information
+                 * @todo what if a username got ':' at the end?
+                 * @todo what if a password got '@' at the end?
+                 */
+                if (isset($config['username']) && isset($config['password'])) {
+                    /*$connectInfo .= (string)$config['username'] . ':'
+                                  . (string)$config['password'] . '@';*/
+                    $authResult = $db->authenticate(
+                        (string)$config['username'],
+                        (string)$config['password']
+                    );
+                    if (!isset($authResult['ok']) or $authResult['ok'] != 1) {
+                        $authResult = $db->authenticate(
+                            (string)$config['username'],
+                            (string)$config['password']
+                        );
+                    }
+                }
+
                 try {
                     //$db->command(array("ping" => 1));
                 } catch (MongoCursorException $e) {
@@ -283,6 +318,7 @@ final class MongoAdapter
                             "Fails to connect db : " . $e->getMessage());
                 }
 
+                //$db->setSlaveOkay(true);
                 $this->setDb($db);
             } else {
                 throw new MongoException("Invalid configurations!");
@@ -328,7 +364,7 @@ final class MongoAdapter
     }
 
     /**
-     * do insert
+     * do insert, save the last record id
      *
      * @link http://www.php.net/manual/en/mongo.writes.php
      * "To get a response from the database, use the safe option,
@@ -344,7 +380,12 @@ final class MongoAdapter
     {
         $collection = $this->_getCollection($collectionName);
         $result = $collection->insert($data, array('safe' => $nbSafeInsert));
-        if (isset($result['ok']) and $result['ok'] == 1) {
+        if (isset($data['_id'])) {
+            $this->setLastInsertId($data['_id']);
+        } else {
+            $this->setLastInsertId(null);
+        }
+        if ($result === true or (isset($result['ok']) and $result['ok'] == 1)) {
             return true;
         }
         return false;
@@ -375,7 +416,7 @@ final class MongoAdapter
      * do update, could be multiple
      *
      * @param string $collectionName
-     * @param array $conditions
+     * @param array $criteria
      * @param array $newobj
      * @param array $options - "multiple" is false by default which means
      *                         we can update only one doc on one time.
@@ -383,11 +424,10 @@ final class MongoAdapter
      *                         update result, instead of always returning true.
      * @return boolean - true on successed, false on failed
      */
-    public function update($collectionName, $conditions, $newobj,
+    public function update($collectionName, $criteria, $newobj,
         $options = array('multiple' => false, 'safe' => true))
     {
         $collection = $this->_getCollection($collectionName);
-        $criteria = $this->_buildCriteria($conditions);
         $result = $collection->update($criteria, $newobj, $options);
         if (true === $result or
             (true == $result['updatedExisting'] and 1 == $result['ok'])) {
@@ -418,21 +458,21 @@ final class MongoAdapter
      * do save, for only one document
      *
      * @param string $collectionName
-     * @param array $conditions
+     * @param array $criteria
      * @param array $fields - the fields and values to save
      * @return bool
      */
-    public function save($collectionName, $conditions, $fields)
+    public function save($collectionName, $criteria, $fields)
     {
+        $result = false;
         $collection = $this->_getCollection($collectionName);
-        $criteria = $this->_buildCriteria($conditions);
         $row = $collection->findOne($criteria);
         if ($row) {
             foreach ($fields as $field => $value) {
                 $row[$field] = $value;
             }
+            $result = $collection->save($row) ? true : false;
         }
-        $result = $collection->save($row) ? true : false;
         return $result;
     }
 
@@ -463,15 +503,14 @@ final class MongoAdapter
      * find one record
      *
      * @param string $collectionName
-     * @param array $conditions
+     * @param array $criteria
      * @param array $fields
      * @return array|null - return value is defined at:
      *         http://www.php.net/manual/en/mongocollection.findone.php
      */
-    public function findOne($collectionName, $conditions, $fields = array())
+    public function findOne($collectionName, $criteria, $fields = array())
     {
         $collection = $this->_getCollection($collectionName);
-        $criteria = $this->_buildCriteria($conditions);
         $result = $collection->findOne($criteria, $fields);
         return $result;
     }
@@ -571,15 +610,12 @@ final class MongoAdapter
      * to MongoId by default
      *
      * @param string $collectionName - the collection name
-     * @param string|MongoId $objId - the document id
+     * @param mixed $objId - the document id
      * @return array
      */
     public function createRef($collectionName, $objId)
     {
         if (!empty($objId)) {
-            if (!($objId instanceof MongoId)) {
-                $objId = new MongoId($objId);
-            }
             $collection = $this->_getCollection($collectionName);
             $ref = $collection->createDBRef($objId);
             return $ref;
@@ -611,6 +647,19 @@ final class MongoAdapter
         } else {
             $result = $collections;
         }
+        return $result;
+    }
+
+    /**
+     * get indexes information
+     *
+     * @param string $collectionName - the collection name
+     * @return array
+     */
+    public function getIndexInfo($collectionName)
+    {
+        $collection = $this->_getCollection($collectionName);
+        $result = $collection->getIndexInfo();
         return $result;
     }
 
@@ -651,12 +700,12 @@ final class MongoAdapter
     /**
      * build criterias by conditions array provided
      *
-     * @todo other conditions...
+     * @deprecated
      *
      * @param array $conditions
      * @return array $criteria - queries in mongo format
      */
-    protected function _buildCriteria($conditions)
+    /*protected function _buildCriteria($conditions)
     {
         $criteria = array();
         if (!empty($conditions) and is_array($conditions)) {
@@ -674,7 +723,7 @@ final class MongoAdapter
             }
         }
         return $criteria;
-    }
+    }*/
 
     /**
      * free the connection
