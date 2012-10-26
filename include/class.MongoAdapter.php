@@ -41,6 +41,13 @@
 final class MongoAdapter
 {
     /**
+     * log file path
+     *
+     * @var string
+     */
+    static public $logFile = '';
+
+    /**
      * connection object
      *
      * @link http://www.php.net/manual/en/class.mongo.php
@@ -85,6 +92,7 @@ final class MongoAdapter
      * "If you are using a replica set...
      *  the driver can automatically route reads to slaves."
      *
+     * @deprecated persist is not relevant for 1.2.0+. In 1.2.0+
      * @var array $_options
      */
     protected $_options = array(
@@ -250,8 +258,7 @@ final class MongoAdapter
                  */
                 try {
                     $options = $this->getOptions();
-                    //header('cinfo: ' . $connectInfo);
-                    //var_dump($options); echo '<br />';die;
+                    //header('cinfo: ' . $connectInfo . ' - ' . json_encode($options));
                     $conn = new Mongo($connectInfo, $options);
 
                     // for testing replica sets
@@ -353,14 +360,16 @@ final class MongoAdapter
      * Disconnect : if you are connected to a replica set,
      * close() will only close the connection to the primary.
      *
-     * @return void
+     * @return bool - Returns if the connection was successfully closed.
      */
     protected function _disconnect()
     {
+        $result = false;
         $conn = $this->getConnection();
         if ($conn instanceof Mongo) {
-            $conn->close();
+            $result = $conn->close();
         }
+        return $result;
     }
 
     /**
@@ -530,24 +539,36 @@ final class MongoAdapter
      * @return MongoCursor
      */
     public function findAll($collectionName, $fields = array(),
-                            $query = array(), $operations = null)
+            $query = array(), $operations = null, $timeout = 3999)
     {
-        $collection = $this->_getCollection($collectionName);
-        $entities = $collection->find($query, $fields);
+        $result = array();
+        try {
+            $collection = $this->_getCollection($collectionName);
+            $entities = $collection->find($query, $fields);
 
-        // if some operations need to apply
-        if (is_array($operations) and !empty($operations)) {
-            if (isset($operations['sort']) and is_array($operations['sort'])) {
-                $entities = $entities->sort($operations['sort']);
+            // if some operations need to apply
+            if (is_array($operations) and !empty($operations)) {
+                if (isset($operations['sort']) and is_array($operations['sort'])) {
+                    $entities = $entities->sort($operations['sort']);
+                }
+                if (isset($operations['skip'])) {
+                    $entities = $entities->skip((int)$operations['skip']);
+                }
+                if (isset($operations['limit'])) {
+                    $entities = $entities->limit((int)$operations['limit']);
+                }
             }
-            if (isset($operations['skip'])) {
-                $entities = $entities->skip((int)$operations['skip']);
+            $entities->timeout($timeout);
+
+            foreach ($entities as $e) {
+                $result[] = $e;
             }
-            if (isset($operations['limit'])) {
-                $entities = $entities->limit((int)$operations['limit']);
-            }
+            return $result;
+        } catch (Exception $e) {
+            $this->mgLog($e, $query, $operations);
+            throw new MongoCursorException(
+                            "Fails find all : " . $e->getMessage());
         }
-        return $entities;
     }
 
     /**
@@ -581,9 +602,15 @@ final class MongoAdapter
     public function count($collectionName, $query = array(),
                           $limit = 0, $skip = 0)
     {
-        $collection = $this->_getCollection($collectionName);
-        $result = $collection->count($query, $limit, $skip);
-        return $result;
+        try {
+            $collection = $this->_getCollection($collectionName);
+            $result = $collection->count($query, $limit, $skip);
+            return $result;
+        } catch (Exception $e) {
+            $this->mgLog($e, $query, array('limit' => $limit, 'skip' => $skip));
+            throw new MongoCursorException(
+                            "Failed counting : " . $e->getMessage());
+        }
     }
 
     /**
@@ -728,13 +755,49 @@ final class MongoAdapter
     /**
      * free the connection
      *
-     * @return void
+     * @return bool
      */
     public function free()
     {
-        $this->_disconnect();
+        $result = $this->_disconnect();
         $this->_db = null;
         $this->_connection = null;
+        return $result;
+    }
+
+    /**
+     * do log
+     *
+     * need ext-defined log path: self::$logFile
+     *
+     * @param Exception $e
+     * @param array|false $criteria
+     * @param array|false $operations
+     * @return void
+     */
+    public function mgLog($e, $criteria = false, $operations = false)
+    {
+        if (is_dir(dirname(self::$logFile))) {
+            $lastErr['err'] = '';
+            if ($this->_db instanceof Mongo) {
+                $lastErr = $this->_db->lastError();
+            }
+        	$logData = "\n" . date('Y-m-d H:i:s') . "\n"
+        	     . 'httphost : ' . 'http://' . $_SERVER ['HTTP_HOST']
+        	     . $_SERVER['PHP_SELF'] . '?' . $_SERVER['QUERY_STRING'] . "\n"
+    	         . 'curError : ' . $e->getMessage() . "\n"
+    	         . (!empty($lastErr['err'])
+    	           ? ('lastError : ' . $lastErr['err'] . "\n") : '')
+    	         . 'host : ' . implode(',', $this->_config['servers']) . "\n"
+    	         . 'database : ' . $this->_config['database'] . "\n";
+        	if (!empty($criteria)) {
+        	    $logData .= 'criteria : ' . json_encode($criteria) . "\n";
+        	}
+        	if (!empty($operations)) {
+        	    $logData .= 'operations : ' . json_encode($operations) . "\n";
+        	}
+            file_put_contents(self::$logFile, $logData, FILE_APPEND);
+        }
     }
 
 }
