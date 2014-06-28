@@ -11,8 +11,6 @@ Table of Contents
 * [Synopsis](#synopsis)
 * [Description](#description)
 * [Prerequisites](#prerequisites)
-* [API Implemented](#api-implemented)
-    * [resty.core.hash](#restycorehash)
 * [Caveat](#caveat)
 * [Author](#author)
 * [Copyright and License](#copyright-and-license)
