@@ -12,7 +12,9 @@ local setmetatable          = setmetatable
 local tonumber              = tonumber
 local tostring              = tostring
 local string                = string
+local table                 = table
 local type                  = type
+local pairs                 = pairs
 
 local ngx                   = ngx
 local print                 = ngx.print
@@ -33,6 +35,7 @@ local mt = {__index = _M}
 
 --[[
 instantiation
+@param string request_from
 @return table
 ]]
 function new(self, request_from)
@@ -42,10 +45,110 @@ function new(self, request_from)
 end
 
 --[[
+do http get
+@param string host
+@param string uri
+@param int port
+@param int timeout
+@return string,string
+]]
+function get(self, host, uri, port, timeout)
+    local body = ''
+    local sock, msg = self:_getConnection(host, port, timeout)
+    if not (string.find(uri, '/') == 1) then
+        msg = "missing '/' before uri - " .. host .. ':' .. port
+    elseif sock then
+        if not string.find(uri, 'request_from') then
+            local requestFrom = self.REQUEST_FROM and 
+                tostring(self.REQUEST_FROM) or (ngx.var.server_name or '')
+            uri = uri .. '&request_from=' .. requestFrom
+        end
+        -- send http headers
+        local reqline = string.format("GET %s HTTP/1.1\r\n", uri) ..
+                        string.format("Host: %s\r\n", host) ..
+                        "Connection: Close\r\n"
+        local bytes, err = sock:send(reqline .. "\r\n")
+        if err then
+            sock:close()
+            msg = "send http headers failed: " .. err
+        else
+            body,msg = self:_getBody(sock)
+        end
+        sock:close()
+    end
+    if msg and msg ~= '' then
+        log(msg)
+    end
+
+    return body, msg
+end
+
+--[[
+do http post
+@param string host
+@param string uri
+@param table params
+@param int port
+@param int timeout
+@return string,string
+]]
+function post(self, host, uri, params, port, timeout)
+    local body = ''
+    local sock, msg = self:_getConnection(host, port, timeout)
+    if not (string.find(uri, '/') == 1) then
+        msg = "missing '/' before uri - " .. host .. ':' .. port
+    elseif sock then
+        if not string.find(uri, 'request_from') then
+            local requestFrom = self.REQUEST_FROM and
+                tostring(self.REQUEST_FROM) or (ngx.var.server_name or '')
+            uri = uri .. '&request_from=' .. requestFrom
+        end
+
+        -- parameters
+        local cntArr = {}
+        if type(params) == 'table' then
+            for k,v in pairs(params) do
+                table.insert(cntArr, k .. '=' .. tostring(v))
+            end
+        end
+        local req_body = table.concat(cntArr, '&')
+
+        -- send http headers
+        local reqline = string.format("POST %s HTTP/1.1\r\n", uri) ..
+                        "Content-Type: application/x-www-form-urlencoded\r\n" ..
+                        string.format("Host: %s\r\n", host) ..
+                        "Content-Length: " .. string.len(req_body) .. "\r\n" ..
+                        "Connection: Close\r\n"
+        local bytes, err = sock:send(reqline .. "\r\n")
+        if err then
+            sock:close()
+            msg = "send http headers failed: " .. err
+        else
+            bytes, err = sock:send(req_body)
+            if err then
+                sock:close()
+                msg = "send http body failed: " .. err
+            else
+                body,msg = self:_getBody(sock)
+            end
+        end
+        sock:close()
+    end
+    if msg and msg ~= '' then
+        log(msg)
+    end
+
+    return body, msg    
+end
+
+--[[-------------------------------------------------------------------------]]
+
+--[[
 receive status line
+@param table sock
 @return int|nil, string
---]]
-local function receivestatusline(sock)
+]]
+function _receivestatusline(self, sock)
     local status_reader = sock:receiveuntil("\r\n")
     local data, err, partial = status_reader()
     if not data then
@@ -64,8 +167,10 @@ end
 
 --[[
 check if should receive body
---]]
-local function shouldreceivebody(code)
+@param int code
+@return int
+]]
+function _shouldreceivebody(self, code)
     if code == 204 or code == 304 then return nil end
     if code >= 100 and code < 200 then return nil end
     return 1
@@ -73,8 +178,13 @@ end
 
 --[[
 read body data
---]]
-local function read_body_data(sock, max_size, fetch_size, callback)
+@param table sock
+@param int max_size
+@param int fetch_size
+@param string callback
+@return int|nil,string
+]]
+function _read_body_data(self, sock, max_size, fetch_size, callback)
     local p_size = fetch_size
     while max_size and max_size > 0 do
         if max_size < p_size then
@@ -100,8 +210,12 @@ end
 
 --[[
 receive body
+@param table sock
+@param table headers
+@param table nreqt
+@return string
 ]]
-local function receivebody(sock, headers, nreqt)
+function _receivebody(self, sock, headers, nreqt)
     local t = headers["transfer-encoding"] -- shortcut
     local body = ''
     local callback = nreqt.body_callback
@@ -122,7 +236,7 @@ local function receivebody(sock, headers, nreqt)
                     return body -- end of chunk
                 else
                     local length = tonumber(data, 16)
-                    local ok, err = read_body_data(sock,length, nreqt.fetch_size, callback)
+                    local ok, err = self:_read_body_data(sock,length, nreqt.fetch_size, callback)
                     if err then
                         return nil,err
                     end
@@ -137,13 +251,13 @@ local function receivebody(sock, headers, nreqt)
             length = nreqt.max_body_size
         end
 
-        local ok, err = read_body_data(sock,length, nreqt.fetch_size, callback)
+        local ok, err = self:_read_body_data(sock,length, nreqt.fetch_size, callback)
         if not ok then
             return nil,err
         end
     else
         -- connection close
-        local ok, err = read_body_data(sock,nreqt.max_body_size, nreqt.fetch_size, callback)
+        local ok, err = self:_read_body_data(sock,nreqt.max_body_size, nreqt.fetch_size, callback)
         if not ok then
             return nil,err
         end
@@ -153,8 +267,11 @@ end
 
 --[[
 receive headers
+@param table sock
+@param table headers
+@return table
 ]]
-local function receiveheaders(sock, headers)
+function _receiveheaders(self, sock, headers)
     local line, name, value, err, tmp1, tmp2
     headers = headers or {}
     -- get first line
@@ -184,9 +301,12 @@ end
 
 --[[
 get socket connection
+@param string host
+@param int port
+@param int timeout
 @return table|nil, string|nil
---]]
-function getConnection(self, host, port, timeout)
+]]
+function _getConnection(self, host, port, timeout)
     local conn      = nil
     local msg       = nil
 
@@ -220,91 +340,67 @@ function getConnection(self, host, port, timeout)
 end
 
 --[[
-do http get
-@return string,string
---]]
-function get(self, host, uri, port, timeout)
+get request body
+@param table sock
+@return string,string|nil
+]]
+function _getBody(self, sock)
     local body = ''
-    local sock, msg = self:getConnection(host, port, timeout)
-    if not (string.find(uri, '/') == 1) then
-        msg = "missing '/' before uri - " .. host .. ':' .. port
-    elseif sock then
-        if not string.find(uri, 'request_from') then
-            local requestFrom = self.REQUEST_FROM and tostring(self.REQUEST_FROM) or (ngx.var.server_name or '')
-            uri = uri .. '&request_from=' .. requestFrom
+    local msg
+    --[[ receive status line ]]
+    local code, status = self:_receivestatusline(sock)
+    --print (code, status)
+    if not code then
+        sock:close()
+        msg = "read status line failed 002 " .. (status and status or '')
+    else
+        --[[ ignore any 100-continue messages ]]
+        while code == 100 do
+            code, status = self:_receivestatusline(sock)
         end
-        --print(uri .. '<br/>')
-
-        --[[ send http get headers --]]
-        local reqline = string.format("GET %s HTTP/1.1\r\n", uri) ..
-                        string.format("Host: %s\r\n", host) ..
-                        "Connection: Close\r\n"
-        local bytes, err = sock:send(reqline .. "\r\n")
-        if err then
+        if not code then
             sock:close()
-            msg = "send http get headers failed: " .. err
-        else
-            --[[ receive status line --]]
-            local code, status = receivestatusline(sock)
-            --print (code, status)
-            if not code then
+            msg = "read status line failed 003 " .. (status and status or '')
+        elseif self:_shouldreceivebody(code) then
+            --[[ new request ]]
+            local nreqt = {
+                max_body_size = 1024 * 1024 * 1024,
+                fetch_size = 1024 * 16,
+            }
+
+            -- @todo we should add some params here to determine whether to receive headers
+            local headers = {}
+            headers, err = self:_receiveheaders(sock, {})
+
+            if err then
                 sock:close()
-                msg = "read status line failed 002 " .. (status and status or '')
+                msg = "read headers failed " .. err
             else
-                --[[ ignore any 100-continue messages --]]
-                while code == 100 do
-                    code, status = receivestatusline(sock)
-                end
-                if not code then
+                --[[ do receive body ]]
+                body, err = self:_receivebody(sock, headers, nreqt)
+                if err then
                     sock:close()
-                    msg = "read status line failed 003 " .. (status and status or '')
-                elseif shouldreceivebody(code) then
-                    --[[ new request ]]
-                    local nreqt = {
-                        max_body_size = 1024 * 1024 * 1024,
-                        fetch_size = 1024 * 16,
-                    }
-
-                    -- @todo we should add some params here to determine whether to receive headers
-                    local headers = {}
-                    headers, err = receiveheaders(sock, {})
-
-                    if err then
-                        sock:close()
-                        msg = "read headers failed " .. err
+                    if code == 200 then
+                        msg = "it seems empty body!"
                     else
-                        --[[ do receive body ]]
-                        body, err = receivebody(sock, headers, nreqt)
-                        if err then
-                            sock:close()
-                            if code == 200 then
-                                msg = "it seems empty body!"
-                            else
-                                msg = "read body failed " .. err
-                            end
-                        end
-                        if body ~= '' then
-                            local pos = string.find(body, "\r\n\r\n")
-                            if pos then
-                                body = string.sub(body, pos + 4)
-                            end
-                        end
+                        msg = "read body failed " .. err
+                    end
+                end
+                if body ~= '' then
+                    local pos = string.find(body, "\r\n\r\n")
+                    if pos then
+                        body = string.sub(body, pos + 4)
                     end
                 end
             end
         end
-        sock:close()
     end
-    if msg and msg ~= '' then
-        log(msg)
-    end
-
-    return body, msg
+    return body,msg
 end
 
 --[[-------------------------------------------------------------------------]]
 
---[[ to prevent use of casual module global variables --]]
+--[[ to prevent use of casual module global variables ]]
 setmetatable(_M, {
     __newindex = function (table, key, val)
         log('attempt to write to undeclared variable "' .. key .. '" in ' .. table._NAME)

@@ -69,8 +69,8 @@ function parse(self, host)
             end
 
             -- try parse file
+            local hostfile = self.HOSTS_FILE_PATH
             if not etchosts then
-                local hostfile = self.HOSTS_FILE_PATH
                 local hf, err = io.open(hostfile, 'r')
                 header['-hfopn'] = 1
                 if not hf then
