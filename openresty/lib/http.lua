@@ -369,8 +369,8 @@ function _getBody(self, sock)
             }
 
             -- @todo we should add some params here to determine whether to receive headers
-            local headers = {}
-            headers, err = self:_receiveheaders(sock, {})
+            --local headers = {}
+            local headers, err = self:_receiveheaders(sock, {})
 
             if err then
                 sock:close()
