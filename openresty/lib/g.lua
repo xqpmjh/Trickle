@@ -7,6 +7,7 @@ common global functions
 
 local cjson                 = require "cjson"
 
+local io                    = io
 local table                 = table
 local string                = string
 local math                  = math
@@ -369,6 +370,20 @@ function htmlentities(str)
 
     local ret = str:gsub("(.)", entities)
     return ret
+end
+
+--[[
+scan directory
+@param string directory
+@return table
+]]
+function scandir(directory)
+    local i, t, popen = 0, {}, io.popen
+    for filename in popen('ls -a "' .. directory .. '"'):lines() do
+        i = i + 1
+        t[i] = filename
+    end
+    return t
 end
 
 --[[
