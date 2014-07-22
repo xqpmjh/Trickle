@@ -55,6 +55,8 @@ This framework is aim at replacing the very slow PHP at the beginning.
 After 2 years of gradually improvement and under billion level service practicing.
 It's time to let it exposure to help more people.
 
+NOTICE: this framework only tell you what you SHOULD do with OpenResty/Lua, but not what you MUST do!
+
 [Back to TOC](#table-of-contents)
 
 Prerequisites
