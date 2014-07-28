@@ -407,6 +407,32 @@ function outJsonCallback(data)
     end
 end
 
+
+
+--[[
+ @desc 在 haystack 中搜索 needle，如果找到则返回 TRUE，否则返回 FALSE。 
+]]
+function in_array(needle, haystack)
+    local res = false
+    local typeNeed = type(needle)
+    local newArr = {}
+    for k,v in pairs(haystack) do
+        if typeNeed == "number" then
+            if needle == int(v) then 
+                res = true
+                break
+            end 
+        else 
+            if needle == v then
+                res = true
+                break
+            end
+        end
+    end
+    return res
+end
+
+
 --[[-------------------------------------------------------------------------]]
 
 --[[ to prevent use of casual module global variables ]]
