@@ -7,6 +7,7 @@ lua-resty-mysql wrapped module
 
 local cjson                 = require "cjson"
 local mysql                 = require "resty.mysql"
+local hosts                 = require "lib.hosts"
 local g                     = require "lib.g"
 
 local string                = string
@@ -60,8 +61,12 @@ function connect(self)
         if db and not self.connect_refused then
             -- connect timeout
             db:set_timeout(cfg.connect_timeout)
+
+            local hosts = hosts:new()
+            local host = hosts:parse(cfg.host)
+
             local ok, err, errno, sqlstate = db:connect({
-                host                = cfg.host,
+                host                = host,
                 port                = cfg.port,
                 database            = cfg.database,
                 user                = cfg.user,
