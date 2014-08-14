@@ -13,6 +13,7 @@ local table                 = table
 local next                  = next
 local type                  = type
 local tonumber              = tonumber
+local tostring              = tostring
 local setmetatable          = setmetatable
 local ipairs                = ipairs
 
@@ -431,8 +432,8 @@ function zrevrange(self, key, zStart, zEnd, isWithScores)
         end
         if self.connected then
             isWithScores = isWithScores and 'WITHSCORES' or false
-            if not zStart or not zEnd or zStart > zEnd then
-                log("invalid redis zset range")
+            if not zStart or not zEnd then
+                log("invalid redis zset range : " .. key .. ' - ' .. tostring(zStart) .. ' - ' .. tostring(zEnd))
             else
                 res = rds:zrevrange(key, zStart, zEnd, isWithScores)
                 if res then
