@@ -1,6 +1,6 @@
 --[[
 index model
-index模型
+index 模型
 
 @description below is the example of:
     getting data from api
