@@ -38,7 +38,7 @@ function new(self)
         HOSTS_FILE_PATH         = '/etc/hosts',
 
         LCACHE_HOSTS_KEY        = 'key_etc_hosts',
-        LCACHE_HOSTS_EXPIRES    = 5
+        LCACHE_HOSTS_EXPIRES    = 10
     }, mt)
 end
 
@@ -58,13 +58,9 @@ function parse(self, host)
             local dkey = self.LCACHE_HOSTS_KEY
             local lcache = self:_getDict('lcache')
             if lcache then
-                if ngx.var.arg_dy == 'c' then
-                    lcache:delete(dkey)
-                else
-                    etchosts = lcache:get(dkey)
-                    if not g.empty(etchosts) then
-                        etchosts = cjson.decode(etchosts)
-                    end
+                etchosts = lcache:get(dkey)
+                if not g.empty(etchosts) then
+                    etchosts = cjson.decode(etchosts)
                 end
             end
 
