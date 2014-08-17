@@ -407,6 +407,57 @@ function outJsonCallback(data)
     end
 end
 
+--[[
+exit 输出变量并退出
+@param mixed obj
+@return void
+]]
+function outExit(obj)
+    if type(obj) == 'table' then
+        printTab(obj)
+	else 
+		ngx.print(obj)
+    end
+	ngx.exit(200)
+end
+
+--[[
+打印table
+@param table tab
+]]
+function printTab(tab)
+    if type(tab) == 'table' then
+        for k,v in pairs(tab) do
+	        if type(v) == 'table' then
+			    ngx.print(k .. ' : ' .. '(')
+			    printTab(v)
+			    ngx.print(')<br/>')
+		    else
+			    ngx.print(k .. ' : ' .. v)
+		    end
+        end
+    end
+end
+
+--[[
+在 haystack 中搜索 needle，如果找到则返回 true，否则返回 false
+@param mixed needle
+@param table haystack
+@return bool
+]]
+function in_array(needle, haystack)
+    local res = false
+    if type(haystack) == 'table' then
+        for k,v in pairs(haystack) do
+            if needle == v then
+                res = true
+                break
+            end
+        end
+    end
+    return res
+end
+
 --[[-------------------------------------------------------------------------]]
 
 --[[ to prevent use of casual module global variables ]]
