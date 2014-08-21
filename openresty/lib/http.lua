@@ -319,9 +319,10 @@ function _getConnection(self, host, port, timeout)
         if not sock then
             msg = "create sock failed!"
         else
+		
             local hosts = hosts:new()
             host = hosts:parse(host)
-
+			
             sock:settimeout(timeout)
             local ok, err = sock:connect(host, port)
             if not ok then
