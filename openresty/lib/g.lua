@@ -126,23 +126,45 @@ function array_flip(tbl)
 end
 
 --[[
-array_rand — Pick one or more random entries out of an array
-@return table|nil
+This function will return a new table containing values from the original 
+table (array) in a shuffled/random order. It is recommended to call math.
+randomseed(os.time()) at the program start to get different results on every run
+@param table tbl
+@return table
 ]]
-function array_rand(tbl, n)
+function shuffle(tbl)
     local rs
     if type(tbl) == 'table' and next(tbl) ~= nil then
         rs = {}
-        local n = n and tonumber(n) or 1
-        local excludes = {}
-        local tbLength = #tbl
+        local order = {}
+        local n = #tbl
         for i = 1, n do
-            local idx = math.random(tbLength)
-            while excludes[idx] do
-                idx = math.random(tbLength)
-            end
-            table.insert(rs, idx)
-            excludes[idx] = true
+            order[i] = {rnd = math.random(), idx = i}
+        end
+        table.sort(order, function(a,b) return a.rnd < b.rnd end)
+        for i = 1, n do
+            rs[i] = tbl[order[i].idx]
+        end
+    end
+    return rs
+end
+
+--[[
+array_rand — Pick one or more random entries out of an array
+@return table|nil
+]]
+function array_rand(tbl, m)
+    local rs
+    if type(tbl) == 'table' and next(tbl) ~= nil then
+        rs = {}
+        local order = {}
+        local n = #tbl
+        for i = 1, n do
+            order[i] = {rnd = math.random(), idx = i}
+        end
+        table.sort(order, function(a,b) return a.rnd < b.rnd end)
+        for i = 1, m do
+            rs[i] = order[i].idx
         end
     end
     return rs

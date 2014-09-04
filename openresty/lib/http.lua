@@ -228,17 +228,17 @@ function _receivebody(self, sock, headers, nreqt)
     end
     if t and t ~= "identity" then
         -- chunked
+        local chunk_header = sock:receiveuntil("\r\n")
         while true do
-            local chunk_header = sock:receiveuntil("\r\n")
             local data, err, partial = chunk_header()
             if not err then
                 if data == "0" then
                     return body -- end of chunk
                 else
                     local length = tonumber(data, 16)
-                    local ok, err = self:_read_body_data(sock,length, nreqt.fetch_size, callback)
+                    local ok, err = self:_read_body_data(sock, length, nreqt.fetch_size, callback)
                     if err then
-                        return nil,err
+                        return nil, err
                     end
                 end
             end
@@ -356,9 +356,15 @@ function _getBody(self, sock)
         msg = "read status line failed 002 " .. (status and status or '')
     else
         --[[ ignore any 100-continue messages ]]
+        local ibc = 1
         while code == 100 do
             code, status = self:_receivestatusline(sock)
+            ibc = ibc + 1
+            if ibc > 3 then
+                break
+            end
         end
+
         if not code then
             sock:close()
             msg = "read status line failed 003 " .. (status and status or '')
