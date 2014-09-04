@@ -38,6 +38,8 @@ function new(self)
     return setmetatable({
         HOSTS_FILE_PATH         = '/etc/hosts',
 
+        IP4_PATTERN             = "(%d+)%.(%d+)%.(%d+)%.(%d+)",
+
         LCACHE_HOSTS_KEY        = 'key_etc_hosts',
         LCACHE_HOSTS_EXPIRES    = 15,
         LCACHE_IP_EXPIRES       =  5
@@ -53,7 +55,7 @@ function parse(self, host)
     local rs = host
     if type(host) == 'string' then
         -- check if host is a "real" host address
-        if not host:match("(%d+)%.(%d+)%.(%d+)%.(%d+)") then
+        if not host:match(self.IP4_PATTERN) then
             local lcache = self:_getDict('lcache')
             local ip
             local etchosts
@@ -64,7 +66,7 @@ function parse(self, host)
                 ip = lcache:get(host_key)
                 if not g.empty(ip) then
                     return ip
-                end 
+                end
                 -- try get cache
                 etchosts = lcache:get(dkey)
                 if not g.empty(etchosts) then
@@ -82,7 +84,11 @@ function parse(self, host)
                 else
                     etchosts = {}
                     for ln in hf:lines() do
-                        etchosts[#etchosts + 1] = ln
+                        if string.find(ln, self.IP4_PATTERN) then
+                            etchosts[#etchosts + 1] = ln
+                        else
+                            etchosts[#etchosts] = etchosts[#etchosts] .. ' ' .. ln
+                        end
                     end
                     hf:close()
                     lcache:set(self.LCACHE_HOSTS_KEY, cjson.encode(etchosts), self.LCACHE_HOSTS_EXPIRES)
@@ -90,7 +96,7 @@ function parse(self, host)
             end
 
             -- try find host/ip matches
-            if type(etchosts) == 'table' then			
+            if type(etchosts) == 'table' then
                 local hit = false
                 for _, line in ipairs(etchosts) do
                     -- try to remove the commentted
@@ -98,7 +104,8 @@ function parse(self, host)
                     if spos then
                         line = string.sub(line, 1, spos - 1)
                     end
-                    if string.find(line, host) then
+                    if string.find(line, "[%s%c]+" .. host .. "[%s%c]*") then
+                        --ngx.say(line .. ' - ' .. host .. '<br />')
 						local h = g.explode("%S+", line)
                         if type(h) == 'table' and h[1] then
                             rs = h[1]
@@ -113,7 +120,7 @@ function parse(self, host)
 
                     --log('missing host: ' .. host .. ' in ' .. hostfile)
                 end
-                if rs then 
+                if rs then
                     lcache:set(host_key,rs,self.LCACHE_IP_EXPIRES)
                 end
             end
