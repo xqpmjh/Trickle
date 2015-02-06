@@ -126,7 +126,7 @@ function array_flip(tbl)
 end
 
 --[[
-This function will return a new table containing values from the original 
+This function will return a new table containing values from the original
 table (array) in a shuffled/random order. It is recommended to call math.
 randomseed(os.time()) at the program start to get different results on every run
 @param table tbl
@@ -164,7 +164,9 @@ function array_rand(tbl, m)
         end
         table.sort(order, function(a,b) return a.rnd < b.rnd end)
         for i = 1, m do
-            rs[i] = order[i].idx
+            if order[i] then
+                rs[i] = order[i].idx
+            end
         end
     end
     return rs
@@ -416,7 +418,7 @@ output json with/without callback
 function outJsonCallback(data)
     if type(data) == 'table' and next(data) ~= nil then
         local jsonData
-        local arg_callback = ngx.var.arg_callback and 
+        local arg_callback = ngx.var.arg_callback and
                                 ngx.unescape_uri(ngx.var.arg_callback) or nil
         arg_callback = htmlspecialchars(arg_callback)
         if arg_callback then
@@ -437,7 +439,7 @@ exit 输出变量并退出
 function outExit(obj)
     if type(obj) == 'table' then
         printTab(obj)
-	else 
+	else
 		ngx.print(obj)
     end
 	ngx.exit(200)

@@ -59,7 +59,7 @@ function get(self, host, uri, port, timeout)
         msg = "missing '/' before uri - " .. host .. ':' .. port
     elseif sock then
         if not string.find(uri, 'request_from') then
-            local requestFrom = self.REQUEST_FROM and 
+            local requestFrom = self.REQUEST_FROM and
                 tostring(self.REQUEST_FROM) or (ngx.var.server_name or '')
             uri = uri .. '&request_from=' .. requestFrom
         end
@@ -138,7 +138,7 @@ function post(self, host, uri, params, port, timeout)
         log(msg)
     end
 
-    return body, msg    
+    return body, msg
 end
 
 --[[-------------------------------------------------------------------------]]
@@ -319,10 +319,10 @@ function _getConnection(self, host, port, timeout)
         if not sock then
             msg = "create sock failed!"
         else
-		
+
             local hosts = hosts:new()
             host = hosts:parse(host)
-			
+
             sock:settimeout(timeout)
             local ok, err = sock:connect(host, port)
             if not ok then
@@ -393,7 +393,7 @@ function _getBody(self, sock)
                         msg = "read body failed " .. err
                     end
                 end
-                if body ~= '' then
+                if body and body ~= '' then
                     local pos = string.find(body, "\r\n\r\n")
                     if pos then
                         body = string.sub(body, pos + 4)
