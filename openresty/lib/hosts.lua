@@ -41,8 +41,8 @@ function new(self)
         IP4_PATTERN             = "(%d+)%.(%d+)%.(%d+)%.(%d+)",
 
         LCACHE_HOSTS_KEY        = 'key_etc_hosts',
-        LCACHE_HOSTS_EXPIRES    = 15,
-        LCACHE_IP_EXPIRES       =  5
+        LCACHE_HOSTS_EXPIRES    = 60,
+        LCACHE_IP_EXPIRES       = 20
     }, mt)
 end
 
