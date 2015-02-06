@@ -87,7 +87,11 @@ function parse(self, host)
                         if string.find(ln, self.IP4_PATTERN) then
                             etchosts[#etchosts + 1] = ln
                         else
-                            etchosts[#etchosts] = etchosts[#etchosts] .. ' ' .. ln
+                            if #etchosts == 0 then
+                                etchosts[1] = ln
+                            else
+                                etchosts[#etchosts] = etchosts[#etchosts] .. ' ' .. ln
+                            end
                         end
                     end
                     hf:close()

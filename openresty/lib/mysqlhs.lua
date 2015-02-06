@@ -12,6 +12,7 @@ now support open_index,find,find_modify,insert,auth
 local cjson                 = require "cjson"
 local handlersocket         = require "lib.handlersocket"
 local g                     = require "lib.g"
+local hosts                 = require "lib.hosts"
 
 local string                = string
 local table                 = table
@@ -66,7 +67,11 @@ function connect(self)
         if hs and not self.connect_refused then
             --[[ connect timeout --]]
             hs:set_timeout(cfg.connect_timeout)
-            local ok, err = hs:connect(cfg.host, cfg.port)
+
+            local hosts = hosts:new()
+            local host = hosts:parse(cfg.host)
+
+            local ok, err = hs:connect(host, cfg.port)
             if not ok then
                 self.connect_refused = true
                 log('failed connecting ' .. _NAME .. ': ' .. cfg.host .. 

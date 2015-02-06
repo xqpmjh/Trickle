@@ -59,9 +59,12 @@ function get(self, host, uri, port, timeout)
         msg = "missing '/' before uri - " .. host .. ':' .. port
     elseif sock then
         if not string.find(uri, 'request_from') then
-            local requestFrom = self.REQUEST_FROM and
-                tostring(self.REQUEST_FROM) or (ngx.var.server_name or '')
-            uri = uri .. '&request_from=' .. requestFrom
+            local requestFrom = self.REQUEST_FROM and tostring(self.REQUEST_FROM) or (ngx.var.server_name or '')
+            if string.find(uri, '?') then
+                uri = uri .. '&request_from=' .. requestFrom
+            else
+                uri = uri .. '?request_from=' .. requestFrom
+            end
         end
         -- send http headers
         local reqline = string.format("GET %s HTTP/1.1\r\n", uri) ..
@@ -99,9 +102,12 @@ function post(self, host, uri, params, port, timeout)
         msg = "missing '/' before uri - " .. host .. ':' .. port
     elseif sock then
         if not string.find(uri, 'request_from') then
-            local requestFrom = self.REQUEST_FROM and
-                tostring(self.REQUEST_FROM) or (ngx.var.server_name or '')
-            uri = uri .. '&request_from=' .. requestFrom
+            local requestFrom = self.REQUEST_FROM and tostring(self.REQUEST_FROM) or (ngx.var.server_name or '')
+            if string.find(uri, '?') then
+                uri = uri .. '&request_from=' .. requestFrom
+            else
+                uri = uri .. '?request_from=' .. requestFrom
+            end
         end
 
         -- parameters

@@ -482,6 +482,22 @@ function in_array(needle, haystack)
     return res
 end
 
+--[[
+url 编码
+]]
+function decodeURI(str)
+    str = string.gsub(str, '%%(%x%x)', function(h) return string.char(tonumber(h, 16)) end)
+    return str
+end
+
+--[[
+url 解码
+]]
+function encodeURI(str)
+    str = string.gsub(str, "([^%w%.%- ])", function(c) return string.format("%%%02X", string.byte(c)) end)
+    return string.gsub(str, " ", "+")
+end
+
 --[[-------------------------------------------------------------------------]]
 
 --[[ to prevent use of casual module global variables ]]
